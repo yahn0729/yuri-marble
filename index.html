@@ -107,14 +107,27 @@ window.rollDice = function () {
     });
   });
 
-   function renderTokens(p1, p2) {
-  document.querySelectorAll(".tokens").forEach(el => el.innerHTML = "");
+function renderTokens(p1, p2) {
+  // 기존 토큰들 제거
+  document.querySelectorAll(".token").forEach(el => el.remove());
 
-  const t1 = document.getElementById(`tile-${p1}`);
-  if (t1) t1.querySelector(".tokens").innerHTML += "🐶";
+  // 🐶 Player1
+  const c1 = document.getElementById(`tile-${p1}`);
+  if (c1) {
+    const t1 = document.createElement("div");
+    t1.className = "token p1";
+    t1.textContent = "🐶";
+    c1.appendChild(t1);
+  }
 
-  const t2 = document.getElementById(`tile-${p2}`);
-  if (t2) t2.querySelector(".tokens").innerHTML += "😎";
+  // 😎 Player2
+  const c2 = document.getElementById(`tile-${p2}`);
+  if (c2) {
+    const t2 = document.createElement("div");
+    t2.className = "token p2";
+    t2.textContent = "😎";
+    c2.appendChild(t2);
+  }
 }
 </script>
 
@@ -175,22 +188,43 @@ window.rollDice = function () {
   position: relative; /* 말 올리려면 필수 */
 }
 
-.tokens{
+.token{
   position: absolute;
-  top: 6px;
-  right: 6px;
-  display: flex;
-  gap: 4px;
+  bottom: 8px;
   font-size: 18px;
   line-height: 1;
+  pointer-events: none;
 }
+
+.token.p1{ left: 8px; }   /* 🐶 왼쪽 아래 */
+.token.p2{ right: 8px; }  /* 😎 오른쪽 아래 */
+
+.controls{
+    margin-top: 28px;   /* 보드와 거리 */
+  }
+
+.controls button{
+    padding: 10px 16px;
+    border: none;
+    border-radius: 12px;
+    background: #ff5aa5;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+.controls button:active{
+    transform: scale(0.98);
+  }
   </style>
 </head>
 <body>
   <h1>Yuri Marble 💗</h1>
   <div id="board"></div>
 
+<div class="controls">
   <button onclick="rollDice()">🎲 주사위</button>
-<p>주사위 결과: <span id="diceResult">-</span></p>
+  <p>주사위 결과: <span id="diceResult">-</span></p>
+</div>
 </body>
 </html>
