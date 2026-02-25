@@ -56,17 +56,23 @@ const tiles = {
       12, 11, 10, 9, 8
     ];
 
-    layout.forEach((num) => {
-      const cell = document.createElement("div");
-      if (num === null) {
-        cell.className = "empty";
-        cell.innerHTML = "&nbsp;";
-      } else {
-        cell.className = "cell";
-        cell.textContent = num;
-      }
-      boardEl.appendChild(cell);
-    });
+layout.forEach((num) => {
+  const cell = document.createElement("div");
+
+  if (num === null) {
+    cell.className = "empty";
+    cell.innerHTML = "&nbsp;";
+  } else {
+    cell.className = "cell";
+    const t = tiles[num];
+    cell.innerHTML = `
+      <div class="tileName">${t?.name ?? num}</div>
+      <div class="tileAmt">${t?.amount ?? ""}</div>
+    `;
+  }
+
+  boardEl.appendChild(cell);
+});
 
     // 실시간 데이터
     const gameRef = doc(db, "games", "room1");
@@ -110,7 +116,16 @@ const tiles = {
   border: none;
     padding: 20px; /* .cell이랑 동일하게 */
 }
+.tileName {
+  font-weight: 800;
+  font-size: 12px;
 }
+.tileAmt {
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.8;
+}    
+
   </style>
 </head>
 <body>
