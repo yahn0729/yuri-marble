@@ -49,12 +49,12 @@ const tiles = {
 };
     
     const layout = [
-      0, 1, 2, 3, 4,
-      15, null, null, null, 5,
-      14, null, null, null, 6,
-      13, null, null, null, 7,
-      12, 11, 10, 9, 8
-    ];
+  12, 13, 14, 15, 0,
+  11, null, null, null, 1,
+  10, null, null, null, 2,
+   9, null, null, null, 3,
+   8,  7,  6,  5,  4
+];
 
 layout.forEach((num) => {
   const cell = document.createElement("div");
@@ -64,7 +64,9 @@ layout.forEach((num) => {
     cell.innerHTML = "&nbsp;";
   } else {
     cell.className = "cell";
-
+ if ([0,4,8,12].includes(num)) {
+      cell.classList.add("corner");
+    }
     const t = tiles[num];
 
     cell.innerHTML = `
@@ -123,7 +125,12 @@ layout.forEach((num) => {
 .cell{
   background:white;
 }
-
+.cell.corner{
+  width:90px;
+  height:90px;
+  font-size:14px;
+  font-weight:bold;
+}
 .empty{
   background:transparent;
   border:none;
