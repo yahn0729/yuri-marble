@@ -31,21 +31,21 @@
     
 const tiles = {
   0: { name: "출발 💗", amount: "+20" },
-  1: { name: "스위스", amount: "10" },
+  1: { name: "스위스 ❄️", amount: "10" },
   2: { name: "황금열쇠 🔑", amount: "" },
-  3: { name: "프랑스", amount: "20" },
+  3: { name: "프랑스 🥐", amount: "20" },
   4: { name: "무인도 🏝", amount: "1턴 정지" },
-  5: { name: "일본", amount: "30" },
+  5: { name: "일본 🗾", amount: "30" },
   6: { name: "황금열쇠 🔑", amount: "" },
-  7: { name: "미국", amount: "40" },
+  7: { name: "미국 🗽", amount: "40" },
   8: { name: "사회복지기금 💰", amount: "모인 금액 수령" },
-  9: { name: "독일", amount: "50" },
+  9: { name: "독일 🍺", amount: "50" },
  10: { name: "황금열쇠 🔑", amount: "" },
- 11: { name: "태국", amount: "60" },
+ 11: { name: "태국 🌴", amount: "60" },
  12: { name: "우주여행 🚀", amount: "랜덤 이동" },
- 13: { name: "영국", amount: "70" },
+ 13: { name: "영국 ☕", amount: "70" },
  14: { name: "사회복지기금 접수처 🧾", amount: "-10 기부" },
- 15: { name: "서울", amount: "80" }
+ 15: { name: "서울 🏙", amount: "80" }
 };
     
 const layout = [
@@ -62,18 +62,19 @@ layout.forEach((num) => {
   if (num === null) {
     cell.className = "empty";
     cell.innerHTML = "&nbsp;";
-  } else {
-    cell.className = "cell";
- if ([0,4,8,12].includes(num)) {
-      cell.classList.add("corner");
-    }
-    const t = tiles[num];
+} else {
+  cell.className = "cell";
 
-    cell.innerHTML = `
-      <div class="tileName">${t?.name ?? num}</div>
-      <div class="tileAmt">${t?.amount ?? ""}</div>
-    `;
+  if ([0,4,8,12].includes(num)) {
+    cell.classList.add("corner");
   }
+
+  const t = tiles[num];
+  cell.innerHTML = `
+    <div class="tileName">${t?.name ?? num}</div>
+    <div class="tileAmt">${t?.amount ?? ""}</div>
+  `;
+}
 
   boardEl.appendChild(cell);
 });
@@ -126,10 +127,8 @@ layout.forEach((num) => {
   background:white;
 }
 .cell.corner{
-  transform: scale(1.18);
-  z-index: 2;
-  border: 3px solid #ff4da6;   /* 찐한 핑크 테두리 */
-  box-shadow: 0 6px 14px rgba(255, 77, 166, 0.25);
+  outline: 4px solid #ff2f92 !important;  /* 찐핑크 */
+  outline-offset: -4px;                  /* 안쪽으로 */
 }
 .empty{
   background:transparent;
