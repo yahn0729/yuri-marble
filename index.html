@@ -47,7 +47,7 @@ layout.forEach((num) => {
 });
     }
 
-    await setDoc(gameRef, { position1: 0, position2: 0 });
+    await setDoc(gameRef, { position1: 0, position2: 0 }); { merge: true });
 
     onSnapshot(gameRef, (doc) => {
       const data = doc.data();
