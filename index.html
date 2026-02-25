@@ -27,11 +27,24 @@
 
     const board = document.getElementById("board");
 
-    for (let i = 0; i < 25; i++) {
-      const cell = document.createElement("div");
-      cell.className = "cell";
-      cell.innerText = i;
-      board.appendChild(cell);
+const layout = [
+  0, 1, 2, 3, 4,
+  15, null, null, null, 5,
+  14, null, null, null, 6,
+  13, null, null, null, 7,
+  12, 11, 10, 9, 8
+];
+
+layout.forEach((num) => {
+  const cell = document.createElement("div");
+  if (num === null) {
+    cell.className = "empty";
+  } else {
+    cell.className = "cell";
+    cell.innerText = num;
+  }
+  board.appendChild(cell);
+});
     }
 
     await setDoc(gameRef, { position1: 0, position2: 0 });
