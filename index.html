@@ -85,8 +85,6 @@ layout.forEach((num) => {
 
     onSnapshot(gameRef, (snap) => {
       const data = snap.data() || {};
-      document.getElementById("p1").textContent = String(data.position1 ?? 0);
-      document.getElementById("p2").textContent = String(data.position2 ?? 0);
     });
 
 window.rollDice = function () {
@@ -165,8 +163,7 @@ window.rollDice = function () {
 <body>
   <h1>Yuri Marble 💗</h1>
   <div id="board"></div>
-  <p>Player1 위치: <span id="p1">0</span></p>
-  <p>Player2 위치: <span id="p2">0</span></p>
+
   <button onclick="rollDice()">🎲 주사위</button>
 <p>주사위 결과: <span id="diceResult">-</span></p>
 </body>
