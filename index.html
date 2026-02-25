@@ -64,7 +64,9 @@ layout.forEach((num) => {
     cell.innerHTML = "&nbsp;";
   } else {
     cell.className = "cell";
+
     const t = tiles[num];
+
     cell.innerHTML = `
       <div class="tileName">${t?.name ?? num}</div>
       <div class="tileAmt">${t?.amount ?? ""}</div>
