@@ -64,6 +64,7 @@ layout.forEach((num) => {
     cell.innerHTML = "&nbsp;";
 } else {
   cell.className = "cell";
+  cell.id = `tile-${num}`;  
 
   if ([0,4,8,12].includes(num)) {
     cell.classList.add("corner");
@@ -71,6 +72,7 @@ layout.forEach((num) => {
 
   const t = tiles[num];
   cell.innerHTML = `
+   <div class="tokens"></div>
     <div class="tileName">${t?.name ?? num}</div>
     <div class="tileAmt">${t?.amount ?? ""}</div>
   `;
@@ -85,6 +87,7 @@ layout.forEach((num) => {
 
     onSnapshot(gameRef, (snap) => {
       const data = snap.data() || {};
+      renderTokens(data.position1 ?? 0, data.position2 ?? 0);
     });
 
 window.rollDice = function () {
@@ -103,6 +106,16 @@ window.rollDice = function () {
       );
     });
   });
+
+   function renderTokens(p1, p2) {
+  document.querySelectorAll(".tokens").forEach(el => el.innerHTML = "");
+
+  const t1 = document.getElementById(`tile-${p1}`);
+  if (t1) t1.querySelector(".tokens").innerHTML += "🐶";
+
+  const t2 = document.getElementById(`tile-${p2}`);
+  if (t2) t2.querySelector(".tokens").innerHTML += "😎";
+}
 </script>
 
   <style>
@@ -157,7 +170,20 @@ window.rollDice = function () {
   padding:0 4px;
   word-break:keep-all;
 }
+    
+.cell{
+  position: relative; /* 말 올리려면 필수 */
+}
 
+.tokens{
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  font-size: 18px;
+  line-height: 1;
+}
   </style>
 </head>
 <body>
