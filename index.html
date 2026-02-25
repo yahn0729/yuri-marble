@@ -2,6 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Yuri Marble 💗</title>
  <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -17,46 +18,57 @@
     appId: "1:520132626186:web:9997ba54d5c0364a799cf3"
   };
 
-  // 1) Firebase init
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const auth = getAuth(app);
-  await signInAnonymously(auth);
+  async function main() {
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
 
-  // 2) Board render (테두리 16칸 + 가운데 빈칸)
-  const boardEl = document.getElementById("board");
-  boardEl.innerHTML = "";
+    await signInAnonymously(auth);
 
-  const layout = [
-    0, 1, 2, 3, 4,
-    15, null, null, null, 5,
-    14, null, null, null, 6,
-    13, null, null, null, 7,
-    12, 11, 10, 9, 8
-  ];
+    // 보드 그리기
+    const boardEl = document.getElementById("board");
+    boardEl.innerHTML = "";
 
-  layout.forEach((num) => {
-    const cell = document.createElement("div");
-    if (num === null) {
-      cell.className = "empty";
-      cell.innerHTML = "&nbsp;";
-    } else {
-      cell.className = "cell";
-      cell.textContent = num;
-    }
-    boardEl.appendChild(cell);
-  });
+    const layout = [
+      0, 1, 2, 3, 4,
+      15, null, null, null, 5,
+      14, null, null, null, 6,
+      13, null, null, null, 7,
+      12, 11, 10, 9, 8
+    ];
 
-  // 3) Realtime state
-  const gameRef = doc(db, "games", "room1");
+    layout.forEach((num) => {
+      const cell = document.createElement("div");
+      if (num === null) {
+        cell.className = "empty";
+        cell.innerHTML = "&nbsp;";
+      } else {
+        cell.className = "cell";
+        cell.textContent = num;
+      }
+      boardEl.appendChild(cell);
+    });
 
-  // 문서 없으면 만들기(있으면 유지)
-  await setDoc(gameRef, { position1: 0, position2: 0 }, { merge: true });
+    // 실시간 데이터
+    const gameRef = doc(db, "games", "room1");
+    await setDoc(gameRef, { position1: 0, position2: 0 }, { merge: true });
 
-  onSnapshot(gameRef, (snap) => {
-    const data = snap.data() || {};
-    document.getElementById("p1").textContent = String(data.position1 ?? 0);
-    document.getElementById("p2").textContent = String(data.position2 ?? 0);
+    onSnapshot(gameRef, (snap) => {
+      const data = snap.data() || {};
+      document.getElementById("p1").textContent = String(data.position1 ?? 0);
+      document.getElementById("p2").textContent = String(data.position2 ?? 0);
+    });
+  }
+
+  // 모바일에서 DOM 준비 보장
+  window.addEventListener("DOMContentLoaded", () => {
+    main().catch((e) => {
+      console.error(e);
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<p style="color:#b00020;font-weight:700">에러: ${String(e.message || e)}</p>`
+      );
+    });
   });
 </script>
 
