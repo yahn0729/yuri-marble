@@ -132,8 +132,11 @@ window.rollDice = function () {
   background:white;
 }
 .cell.corner{
-  outline: 4px solid #ff2f92 !important;  /* 찐핑크 */
-  outline-offset: -4px;                  /* 안쪽으로 */
+  transform: scale(1.18);
+  transform-origin: center;
+  z-index: 2;
+  outline: 4px solid #ff2f92;
+  outline-offset: -4px;
 }
 .empty{
   background:transparent;
