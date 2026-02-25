@@ -101,32 +101,50 @@ layout.forEach((num) => {
 
   <style>
     body { background: #ffe6f2; font-family: sans-serif; text-align: center; }
-    #board { 
-      display: grid; 
-      grid-template-columns: repeat(5, 60px); 
-      gap: 5px; 
-      justify-content: center; 
-      margin-top: 20px;
-    }
-    .cell { 
-      background: white; 
-      border-radius: 10px; 
-      padding: 20px; 
-    }
-.empty {
-  background: transparent;
-  border: none;
-    padding: 20px; /* .cell이랑 동일하게 */
+#board{
+  display:grid;
+  grid-template-columns: repeat(5, 72px); /* 크기 조절 가능 */
+  gap: 10px;
+  justify-content:center;
+  margin-top:20px;
 }
-.tileName {
-  font-weight: 800;
-  font-size: 12px;
+
+.cell, .empty{
+  width:72px;
+  height:72px;
+  border-radius:14px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  box-sizing:border-box;
 }
-.tileAmt {
-  margin-top: 6px;
-  font-size: 11px;
-  opacity: 0.8;
-}    
+
+.cell{
+  background:white;
+}
+
+.empty{
+  background:transparent;
+  border:none;
+}
+.tileName{
+  font-weight:800;
+  font-size:12px;
+  line-height:1.1;
+  text-align:center;
+  padding:0 4px;
+  word-break:keep-all;   /* 한글 글자 단위 쪼개짐 방지 */
+}
+
+.tileAmt{
+  margin-top:6px;
+  font-size:11px;
+  opacity:0.75;
+  text-align:center;
+  padding:0 4px;
+  word-break:keep-all;
+}
 
   </style>
 </head>
