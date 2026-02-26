@@ -298,6 +298,19 @@ layout.forEach((num) => {
 
       // 게임 상태/로컬 변수
       const gameRef = doc(db, "games", "room1");
+
+      window.resetGame = async function () {
+  await setDoc(gameRef, {
+    position1: 0,
+    position2: 0,
+    turn: 1,
+    money1: 200,
+    money2: 200,
+    owned: {},
+    pending: null
+  }, { merge: true });
+};
+      
       let myPlayer = null;
       let currentPos = 0;
       let currentPos2 = 0;
@@ -596,6 +609,7 @@ document.getElementById("moneyDisplay").innerHTML =
 
   <div class="controls">
     <button id="rollBtn" onclick="rollDice()">🎲 주사위</button>
+      <button onclick="resetGame()">🔄 게임 리셋</button>
 
     <div id="diceBox">
       <div id="dice">🎲</div>
