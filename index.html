@@ -222,6 +222,7 @@
       let latestTurn = 1;
       let money1 = 200;
       let money2 = 200;
+      let owned = {};
 
       // 이동 애니메이션
       let animating = false;
@@ -247,6 +248,7 @@
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(gameRef);
         const data = snap.data() || {};
+          owned = data.owned || {};
         const patch = {};
         if (data.turn == null) patch.turn = 1;
         if (data.money1 == null) patch.money1 = 200;
@@ -304,6 +306,14 @@
           const pos2 = data.position2 ?? 0;
           const myPos = (myPlayer === 1) ? pos1 : pos2;
           const next = (myPos + dice) % 16;
+
+          const t = tiles[next];
+const isProp = t?.type === "prop";
+const owner = owned[String(next)] ?? null;
+
+if (isProp && !owner) {
+  console.log("🟩 무소유 땅 도착!", next, t.name);
+}
 
           tx.set(gameRef, {
             ...(myPlayer === 1 ? { position1: next } : { position2: next }),
