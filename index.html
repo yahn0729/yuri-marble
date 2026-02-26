@@ -324,7 +324,9 @@ if (isProp && !owner) {
   const buildPrice = Math.round(price / 2);
   const rentBuilding = rentLand * 3; // 유리 확정 룰
 
+  // ✅ 말 위치도 같이 저장 + pending 저장
   await setDoc(gameRef, {
+    ...(myPlayer === 1 ? { position1: next } : { position2: next }),
     pending: {
       type: "buy",
       tile: next,
@@ -336,9 +338,9 @@ if (isProp && !owner) {
     }
   }, { merge: true });
 
-  console.log("🟨 pending 저장 완료", next);
+  console.log("🟨 pending+position 저장 완료", next);
 
-  // ✅ 초미니: pending 저장만 하고(카드/구매 X) 일단 여기서 끝
+  // ✅ 초미니: 턴은 아직 넘기지 않음(카드 선택 후에 넘길 예정)
   return;
 }
 
