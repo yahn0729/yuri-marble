@@ -223,6 +223,7 @@
       let money1 = 200;
       let money2 = 200;
       let owned = {};
+      let pending = null;
 
       // 이동 애니메이션
       let animating = false;
@@ -248,7 +249,11 @@
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(gameRef);
         const data = snap.data() || {};
+        if (data.pending == null) {
+    tx.set(gameRef, { pending: null }, { merge: true });
+  }
           owned = data.owned || {};
+         pending = data.pending || null;
         const patch = {};
         if (data.turn == null) patch.turn = 1;
         if (data.money1 == null) patch.money1 = 200;
@@ -313,6 +318,28 @@ const owner = owned[String(next)] ?? null;
 
 if (isProp && !owner) {
   console.log("🟩 무소유 땅 도착!", next, t.name);
+
+  const price = t.price;
+  const rentLand = t.rent;
+  const buildPrice = Math.round(price / 2);
+  const rentBuilding = rentLand * 3; // 유리 확정 룰
+
+  await setDoc(gameRef, {
+    pending: {
+      type: "buy",
+      tile: next,
+      player: myPlayer,
+      price,
+      rentLand,
+      buildPrice,
+      rentBuilding
+    }
+  }, { merge: true });
+
+  console.log("🟨 pending 저장 완료", next);
+
+  // ✅ 초미니: pending 저장만 하고(카드/구매 X) 일단 여기서 끝
+  return;
 }
 
           tx.set(gameRef, {
