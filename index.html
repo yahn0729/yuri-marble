@@ -115,7 +115,15 @@ layout.forEach((num) => {
 
     // 실시간 데이터
     const gameRef = doc(db, "games", "room1");
-await setDoc(gameRef, { position1: 0, position2: 0, turn: 1 }, { merge: true });
+await setDoc(gameRef, { position1: 0, position2: 0 }, { merge: true });
+    
+await runTransaction(db, async (tx) => {
+  const snap = await tx.get(gameRef);
+  const data = snap.data() || {};
+  if (data.turn == null) {
+    tx.set(gameRef, { turn: 1 }, { merge: true });
+  }
+});  
     
 await assignPlayer(gameRef);
 
