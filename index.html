@@ -55,6 +55,8 @@ async function assignPlayer(gameRef) {
   let currentPos = 0;
   let currentPos2 = 0;
 
+ let latestTurn = 1;   
+
     // 보드 그리기
     const boardEl = document.getElementById("board");
     boardEl.innerHTML = "";
@@ -113,7 +115,7 @@ layout.forEach((num) => {
 
     // 실시간 데이터
     const gameRef = doc(db, "games", "room1");
-    await setDoc(gameRef, { position1: 0, position2: 0 }, { merge: true });
+await setDoc(gameRef, { position1: 0, position2: 0, turn: 1 }, { merge: true });
     
 await assignPlayer(gameRef);
 
@@ -128,16 +130,38 @@ onSnapshot(gameRef, (snap) => {
   currentPos  = data.position1 ?? 0;
   currentPos2 = data.position2 ?? 0;
   renderTokens(currentPos, currentPos2);
+
+   const turn = data.turn ?? 1;
+  latestTurn = turn;
+
+  const btn = document.querySelector(".controls button");
+  if (!myPlayer) {
+    btn.disabled = true;
+  } else {
+    btn.disabled = (turn !== myPlayer);
+  }
+
+  document.getElementById("playerLabel").textContent =
+    myPlayer
+      ? `당신은 Player ${myPlayer} ${myPlayer === 1 ? "🐶" : "😎"} / 현재 턴: Player ${turn}`
+      : `관전 모드 👀 / 현재 턴: Player ${turn}`;
 });
 
 window.rollDice = async function () {
+  if (!latestTurn) return; // 안전장치
+  if (!myPlayer) return;
+  if (latestTurn !== myPlayer) return; // 내 턴 아니면 무시
+
   const dice = Math.floor(Math.random() * 6) + 1;
   document.getElementById("diceResult").innerText = dice;
 
-  const next = (currentPos + dice) % 16;
+  const myPos = (myPlayer === 1) ? currentPos : currentPos2;
+  const next = (myPos + dice) % 16;
 
+  // ✅ 내 말 이동 + 턴 넘기기
   await setDoc(gameRef, {
-    position1: next
+    ...(myPlayer === 1 ? { position1: next } : { position2: next }),
+    turn: (myPlayer === 1 ? 2 : 1)
   }, { merge: true });
 };
   }
