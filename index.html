@@ -25,6 +25,9 @@
 
     await signInAnonymously(auth);
 
+  let currentPos = 0;
+  let currentPos2 = 0;
+
     // 보드 그리기
     const boardEl = document.getElementById("board");
     boardEl.innerHTML = "";
@@ -85,14 +88,20 @@ layout.forEach((num) => {
     const gameRef = doc(db, "games", "room1");
     await setDoc(gameRef, { position1: 0, position2: 0 }, { merge: true });
 
-    onSnapshot(gameRef, (snap) => {
-      const data = snap.data() || {};
-      renderTokens(data.position1 ?? 0, data.position2 ?? 0);
-    });
+onSnapshot(gameRef, (snap) => {
+  const data = snap.data() || {};
+  currentPos  = data.position1 ?? 0;
+  currentPos2 = data.position2 ?? 0;
+  renderTokens(currentPos, currentPos2);
+});
 
 window.rollDice = function () {
   const dice = Math.floor(Math.random() * 6) + 1;
   document.getElementById("diceResult").innerText = dice;
+
+    const next = (currentPos + dice) % 16;
+  currentPos = next;
+  renderTokens(currentPos, currentPos2);
 };
   }
 
