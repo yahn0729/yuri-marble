@@ -4,583 +4,368 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Yuri Marble 💗</title>
- <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getFirestore, doc, setDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyB-ZXl5RpgKzbickK0VJrFFY1YJ0U3qp0A",
-    authDomain: "yuri-marble.firebaseapp.com",
-    projectId: "yuri-marble",
-    storageBucket: "yuri-marble.firebasestorage.app",
-    messagingSenderId: "520132626186",
-    appId: "1:520132626186:web:9997ba54d5c0364a799cf3"
-  };
-
-async function main() {
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-
-    await signInAnonymously(auth);
-
-  const uid = auth.currentUser.uid;
-let myPlayer = null;
-
-async function assignPlayer(gameRef) {
-  const saved = localStorage.getItem("yuriMarblePlayer");
-  if (saved === "1" || saved === "2") {
-    myPlayer = Number(saved);
-    return;
-  }
-
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(gameRef);
-    const data = snap.exists() ? snap.data() : {};
-
-    const seat1 = data.seat1 ?? null;
-    const seat2 = data.seat2 ?? null;
-
-    if (seat1 === uid) myPlayer = 1;
-    else if (seat2 === uid) myPlayer = 2;
-    else if (!seat1) { myPlayer = 1; tx.set(gameRef, { seat1: uid }, { merge: true }); }
-    else if (!seat2) { myPlayer = 2; tx.set(gameRef, { seat2: uid }, { merge: true }); }
-    else myPlayer = null;
-  });
-
-  if (myPlayer) localStorage.setItem("yuriMarblePlayer", String(myPlayer));
-}
-    
-  let currentPos = 0;
-  let currentPos2 = 0;
-
- let latestTurn = 1; 
-
- let money1 = 200;
-let money2 = 200;   
-
-let owned = {};          // { tileIndex: 1|2 }
-let pending = null;      // { type:"buy", tile, player, ... }  
-
-let animating = false;
-
- sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
-
-async  animateMove(who, from, to){
-  if (animating) return;
-  animating = true;
-
-  let pos = from;
-  const steps = (to - from + 16) % 16;
-
-  for (let i = 0; i < steps; i++) {
-    pos = (pos + 1) % 16;
-
-    if (who === 1) currentPos = pos;
-    else currentPos2 = pos;
-
-    renderTokens(currentPos, currentPos2);
-    await sleep(180);
-  }
-
-  animating = false;
-}
-
-    // 보드 그리기
-    const boardEl = document.getElementById("board");
-    boardEl.innerHTML = "";
-    
-const tiles = {
-  0:  { type:"start",  name: "출발 💗", amount: "+20" },
-
-  1:  { type:"prop",   name: "스위스 ❄️", price: 10, rent: 4 },
-  2:  { type:"key",    name: "황금열쇠 🔑" },
-  3:  { type:"prop",   name: "프랑스 🥐", price: 20, rent: 6 },
-  4:  { type:"jail",   name: "무인도 🏝", amount: "2턴 정지" },
-
-  5:  { type:"prop",   name: "일본 🗾", price: 30, rent: 8 },
-  6:  { type:"key",    name: "황금열쇠 🔑" },
-  7:  { type:"prop",   name: "미국 🗽", price: 40, rent: 10 },
-  8:  { type:"fund",   name: "사회복지기금 💰", amount: "모인 금액 수령" },
-
-  9:  { type:"prop",   name: "독일 🍺", price: 50, rent: 12 },
-  10: { type:"key",    name: "황금열쇠 🔑" },
-  11: { type:"prop",   name: "태국 🌴", price: 60, rent: 14 },
-  12: { type:"travel", name: "우주여행 🚀", amount: "랜덤 이동" },
-
-  13: { type:"prop",   name: "영국 ☕", price: 70, rent: 16 },
-  14: { type:"fundpay",name: "사회복지기금 접수처 🧾", amount: "-10 기부" },
-  15: { type:"prop",   name: "서울 🏙", price: 80, rent: 18 }
-};
-    
-const layout = [
-  8,  9, 10, 11, 12,
-  7, null, null, null, 13,
-  6, null, null, null, 14,
-  5, null, null, null, 15,
-  4,  3,  2,  1,  0
-];
-
-layout.forEach((num) => {
-  const cell = document.createElement("div");
-
-  if (num === null) {
-    cell.className = "empty";
-    cell.innerHTML = "&nbsp;";
-} else {
-  cell.className = "cell";
-  cell.id = `tile-${num}`;  
-
-  if ([0,4,8,12].includes(num)) {
-    cell.classList.add("corner");
-  }
-
-  const t = tiles[num];
-  cell.innerHTML = `
-   <div class="tokens"></div>
-    <div class="tileName">${t?.name ?? num}</div>
-    <div class="tileAmt">${t?.amount ?? ""}</div>
-  `;
-}
-
-  boardEl.appendChild(cell);
-});
-
-    // 실시간 데이터
-    const gameRef = doc(db, "games", "room1");
-await setDoc(gameRef, { 
-  position1: 0, 
-  position2: 0,
-  money1: 200,
-  money2: 200
-}, { merge: true });
-    
-await runTransaction(db, async (tx) => {
-  const snap = await tx.get(gameRef);
-  const data = snap.data() || {};
-  if (data.owned == null) tx.set(gameRef, { owned: {} }, { merge: true });
-  if (data.pending == null) tx.set(gameRef, { pending: null }, { merge: true });
-}); 
-    
-await assignPlayer(gameRef);
-
-
-const label = document.getElementById("playerLabel");
-if (myPlayer === 1) label.textContent = "당신은 Player 1 🐶";
-else if (myPlayer === 2) label.textContent = "당신은 Player 2 😎";
-else label.textContent = "관전 모드 👀";
-    
-onSnapshot(gameRef, async (snap) => {
-  const data = snap.data() || {};
-
-owned = data.owned || {};
-pending = data.pending || null;
-
-  money1 = data.money1 ?? 200;
-  money2 = data.money2 ?? 200;
-
-  const newP1 = data.position1 ?? 0;
-  const newP2 = data.position2 ?? 0;
-
-  if (newP1 !== currentPos) {
-    await animateMove(1, currentPos, newP1);
-  } else {
-    currentPos = newP1;
-  }
-
-  if (newP2 !== currentPos2) {
-    await animateMove(2, currentPos2, newP2);
-  } else {
-    currentPos2 = newP2;
-  }
-
-  renderTokens(currentPos, currentPos2);
-
-  const turn = data.turn ?? 1;
-  latestTurn = turn;
-
-const btn = document.getElementById("rollBtn");
-  btn.disabled = (!myPlayer || turn !== myPlayer);
-
-  document.getElementById("playerLabel").textContent =
-    myPlayer
-      ? `당신은 Player ${myPlayer} ${myPlayer === 1 ? "🐶" : "😎"} / 현재 턴: Player ${turn}`
-      : `관전 모드 👀 / 현재 턴: Player ${turn}`;
-
-document.getElementById("moneyDisplay").innerHTML =
-  `Player 1: <b>${money1}</b> 💰 &nbsp;&nbsp; | &nbsp;&nbsp; Player 2: <b>${money2}</b> 💰`;
-
-renderPendingModal();
-  
-});
-
-    
- showModal(show) {
-  document.getElementById("modal").style.display = show ? "block" : "none";
-}
-
- renderPendingModal() {
-  if (!pending) { showModal(false); return; }
-
-  // buy만 이번 단계에서 처리
-  if (pending.type !== "buy") { showModal(false); return; }
-
-  const t = tiles[pending.tile];
-  const titleEl = document.getElementById("modalTitle");
-  const bodyEl  = document.getElementById("modalBody");
-  const hintEl  = document.getElementById("modalHint");
-  const buyBtn  = document.getElementById("buyBtn");
-  const passBtn = document.getElementById("passBtn");
-
-  titleEl.textContent = `${t?.name ?? ("타일 " + pending.tile)}`;
-  bodyEl.innerHTML =
-    `매입가: <b>${pending.price}</b> 💰<br>` +
-    `통행료(대지): <b>${pending.rentLand}</b> 💸<br>` +
-    `건물가(예정): <b>${pending.buildPrice}</b> 🏗️<br>` +
-    `통행료(건물): <b>${pending.rentBuilding}</b> 💥`;
-
-  const isMyChoice = (myPlayer && pending.player === myPlayer);
-  buyBtn.disabled = !isMyChoice;
-  passBtn.disabled = !isMyChoice;
-
-  hintEl.textContent = isMyChoice
-    ? "선택하세요: 구매 또는 패스"
-    : `Player ${pending.player}가 선택 중...`;
-
-  showModal(true);
-}
-
-window.rollDice = async function () {
-  if (!myPlayer) return;
-
-  // 주사위 애니메이션(유리 버전 유지)
-  const diceEl = document.getElementById("dice");
-  diceEl.classList.add("shake");
-  document.getElementById("diceResult").innerText = "...";
-  diceEl.textContent = "🎲";
-  await new Promise(r => setTimeout(r, 650));
-  diceEl.classList.remove("shake");
-
-  const dice = Math.floor(Math.random() * 6) + 1;
-  document.getElementById("diceResult").innerText = dice;
-  diceEl.textContent = dice;
-
-  // ✅ 핵심: 트랜잭션으로 "내 턴인지 + pending 없는지" 확인하고 처리
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(gameRef);
-    const data = snap.data() || {};
-
-    const turn = data.turn ?? 1;
-    const pend = data.pending ?? null;
-    if (turn !== myPlayer) return;       // 내 턴 아니면 무시
-    if (pend) return;                    // 이미 선택 진행중이면 무시
-
-    const pos1 = data.position1 ?? 0;
-    const pos2 = data.position2 ?? 0;
-    const myPos = (myPlayer === 1) ? pos1 : pos2;
-
-    const next = (myPos + dice) % 16;
-
-    // 우선 위치만 업데이트(턴은 아직 안 넘김!)
-    tx.set(gameRef, (myPlayer === 1) ? { position1: next } : { position2: next }, { merge: true });
-
-    // 땅(대지)이고, 무소유면 pending(buy) 생성
-    const t = tiles[next];
-    const ownedNow = data.owned || {};
-    const owner = ownedNow[String(next)] ?? null;
-
-    if (t?.type === "prop" && !owner) {
-      const price = t.price;
-      const rentLand = t.rent;                 // 기존 rent 사용
-      const buildPrice = Math.round(price / 2);
-      const rentBuilding = rentLand * 3;       // 유리 확정 룰
-
-      tx.set(gameRef, {
-        pending: {
-          type: "buy",
-          tile: next,
-          player: myPlayer,
-          price,
-          rentLand,
-          buildPrice,
-          rentBuilding
-        }
-      }, { merge: true });
-
-      // ✅ pending 있으면 턴은 선택 끝난 후에 넘길 거라 여기서 종료
-      return;
-    }
-
-    // (이번 단계에서는) 땅 아니거나/이미 소유면 그냥 턴 넘김(통행료는 다음 단계에서!)
-    tx.set(gameRef, { turn: (myPlayer === 1 ? 2 : 1) }, { merge: true });
-  });
-};
-
-window.buyLand = async function () {
-  if (!myPlayer) return;
-
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(gameRef);
-    const data = snap.data() || {};
-    const pend = data.pending;
-    if (!pend || pend.type !== "buy") return;
-    if (pend.player !== myPlayer) return;
-
-    const tile = pend.tile;
-    const price = pend.price;
-
-    const ownedNow = data.owned || {};
-    if (ownedNow[String(tile)]) return; // 이미 누가 샀으면 종료
-
-    const m1 = data.money1 ?? 200;
-    const m2 = data.money2 ?? 200;
-    const myMoney = (myPlayer === 1) ? m1 : m2;
-    if (myMoney < price) {
-      // 돈 부족이면 그냥 패스로 처리(간단)
-      tx.set(gameRef, { pending: null, turn: (myPlayer === 1 ? 2 : 1) }, { merge: true });
-      return;
-    }
-
-    // 소유권 등록
-    ownedNow[String(tile)] = myPlayer;
-
-    // 돈 차감 + pending 제거 + 턴 넘김
-    tx.set(gameRef, {
-      owned: ownedNow,
-      ...(myPlayer === 1 ? { money1: myMoney - price } : { money2: myMoney - price }),
-      pending: null,
-      turn: (myPlayer === 1 ? 2 : 1)
-    }, { merge: true });
-  });
-};
-
-window.passLand = async function () {
-  if (!myPlayer) return;
-
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(gameRef);
-    const data = snap.data() || {};
-    const pend = data.pending;
-    if (!pend || pend.type !== "buy") return;
-    if (pend.player !== myPlayer) return;
-
-    tx.set(gameRef, {
-      pending: null,
-      turn: (myPlayer === 1 ? 2 : 1)
-    }, { merge: true });
-  });
-};   
-  }
-
-  // 모바일에서 DOM 준비 보장
-  window.addEventListener("DOMContentLoaded", () => {
-    main().catch((e) => {
-      console.error(e);
-      document.body.insertAdjacentHTML(
-        "beforeend",
-        `<p style="color:#b00020;font-weight:700">에러: ${String(e.message || e)}</p>`
-      );
-    });
-  });
-
-function renderTokens(p1, p2) {
-  // 기존 토큰들 제거
-  document.querySelectorAll(".token").forEach(el => el.remove());
-
-  // 🐶 Player1
-  const c1 = document.getElementById(`tile-${p1}`);
-  if (c1) {
-    const t1 = document.createElement("div");
-    t1.className = "token p1";
-    t1.textContent = "🐶";
-    c1.appendChild(t1);
-  }
-
-  // 😎 Player2
-  const c2 = document.getElementById(`tile-${p2}`);
-  if (c2) {
-    const t2 = document.createElement("div");
-    t2.className = "token p2";
-    t2.textContent = "😎";
-    c2.appendChild(t2);
-  }
-}
-</script>
 
   <style>
-    body { background: #ffe6f2; font-family: sans-serif; text-align: center; }
-#board{
-  display:grid;
-  grid-template-columns: repeat(5, 72px); /* 크기 조절 가능 */
-  gap: 10px;
-  justify-content:center;
-  margin-top:20px;
-}
+    body { background: #ffe6f2; font-family: sans-serif; text-align: center; margin: 0; padding: 18px; }
+    h1 { margin: 8px 0 10px; }
 
-.cell, .empty{
-  width:72px;
-  height:72px;
-  border-radius:14px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  box-sizing:border-box;
-}
+    #playerLabel{ font-weight:800; margin:6px 0 0; }
+    #moneyDisplay{ font-weight:700; margin:6px 0 0; }
 
-.cell{
-  background:white;
-}
-.cell.corner{
-  transform: scale(1.18);
-  transform-origin: center;
-  z-index: 2;
-  outline: 4px solid #ff2f92;
-  outline-offset: -4px;
-}
-.empty{
-  background:transparent;
-  border:none;
-}
-.tileName{
-  font-weight:800;
-  font-size:12px;
-  line-height:1.1;
-  text-align:center;
-  padding:0 4px;
-  word-break:keep-all;   /* 한글 글자 단위 쪼개짐 방지 */
-}
+    #board{
+      display:grid;
+      grid-template-columns: repeat(5, 72px);
+      gap: 10px;
+      justify-content:center;
+      margin-top:14px;
+    }
 
-.tileAmt{
-  margin-top:6px;
-  font-size:11px;
-  opacity:0.75;
-  text-align:center;
-  padding:0 4px;
-  word-break:keep-all;
-}
-    
-.cell{
-  position: relative; /* 말 올리려면 필수 */
-}
+    .cell, .empty{
+      width:72px;
+      height:72px;
+      border-radius:14px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      box-sizing:border-box;
+    }
 
-.token{
-  position: absolute;
-  bottom: 8px;
-  font-size: 18px;
-  line-height: 1;
-  pointer-events: none;
-}
+    .cell{
+      background:white;
+      position: relative;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.06);
+    }
 
-.token.p1{ left: 8px; }   /* 🐶 왼쪽 아래 */
-.token.p2{ right: 8px; }  /* 😎 오른쪽 아래 */
+    .cell.corner{
+      transform: scale(1.18);
+      transform-origin: center;
+      z-index: 2;
+      outline: 4px solid #ff2f92;
+      outline-offset: -4px;
+    }
 
-.controls{
-    margin-top: 28px;   /* 보드와 거리 */
-  }
+    .empty{ background:transparent; border:none; }
 
-.controls button{
-    padding: 10px 16px;
-    border: none;
-    border-radius: 12px;
-    background: #ff5aa5;
-    color: white;
-    font-weight: 700;
-    cursor: pointer;
-  }
+    .tileName{
+      font-weight:900;
+      font-size:12px;
+      line-height:1.1;
+      text-align:center;
+      padding:0 4px;
+      word-break:keep-all;
+    }
 
-.controls button:active{
-    transform: scale(0.98);
-  }
+    .tileAmt{
+      margin-top:6px;
+      font-size:11px;
+      opacity:0.75;
+      text-align:center;
+      padding:0 4px;
+      word-break:keep-all;
+    }
 
-  #dice.shake {
-  animation: shake 0.35s linear 2;
-}
-@keyframes shake{
-  0%{ transform: rotate(0deg) translateX(0); }
-  25%{ transform: rotate(-8deg) translateX(-2px); }
-  50%{ transform: rotate(8deg) translateX(2px); }
-  75%{ transform: rotate(-6deg) translateX(-2px); }
-  100%{ transform: rotate(0deg) translateX(0); }
-}
-    
-  #modal { position: fixed; inset: 0; z-index: 9999; }
-.modal-backdrop{
-  position:absolute; inset:0;
-  background: rgba(0,0,0,0.35);
-  backdrop-filter: blur(2px);
-}
-.modal-card{
-  position:absolute; left:50%; top:50%;
-  transform: translate(-50%, -50%);
-  width: min(360px, calc(100vw - 28px));
-  background: #fff;
-  border-radius: 18px;
-  padding: 14px 14px 12px;
-  box-shadow: 0 18px 50px rgba(0,0,0,0.22);
-  text-align: left;
-}
-.modal-title{ font-weight: 900; font-size: 16px; margin-bottom: 8px; }
-.modal-body{ font-weight: 800; font-size: 13px; opacity: .85; line-height: 1.45; }
-.modal-actions{
-  display:flex; gap:10px;
-  margin-top: 12px;
-}
-.modal-actions button{
-  flex:1;
-  padding: 10px 12px;
-  border: none;
-  border-radius: 12px;
-  background: #ff5aa5;
-  color: #fff;
-  font-weight: 900;
-  cursor:pointer;
-}
-.modal-actions button.ghost{
-  background: #f2f2f2;
-  color: #333;
-}
-.modal-actions button:disabled{
-  opacity: .45;
-  cursor: not-allowed;
-}
-.modal-hint{ margin-top: 10px; font-size: 12px; font-weight: 800; opacity: .7; }
-    
+    .token{
+      position: absolute;
+      bottom: 8px;
+      font-size: 18px;
+      line-height: 1;
+      pointer-events: none;
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.12));
+    }
+    .token.p1{ left: 8px; }
+    .token.p2{ right: 8px; }
+
+    .controls{ margin-top: 18px; }
+    .controls button{
+      padding: 10px 16px;
+      border: none;
+      border-radius: 12px;
+      background: #ff5aa5;
+      color: white;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 10px 18px rgba(255,90,165,0.25);
+    }
+    .controls button:disabled{
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .controls button:active{ transform: scale(0.98); }
+
+    #diceBox{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      gap: 10px;
+      margin-top: 10px;
+      font-weight: 900;
+    }
+    #dice{
+      width: 46px; height: 46px;
+      border-radius: 14px;
+      background: #fff;
+      display:flex; justify-content:center; align-items:center;
+      font-size: 22px;
+      box-shadow: 0 10px 18px rgba(0,0,0,0.08);
+      user-select:none;
+    }
+    #dice.shake { animation: shake 0.35s linear 2; }
+    @keyframes shake{
+      0%{ transform: rotate(0deg) translateX(0); }
+      25%{ transform: rotate(-8deg) translateX(-2px); }
+      50%{ transform: rotate(8deg) translateX(2px); }
+      75%{ transform: rotate(-6deg) translateX(-2px); }
+      100%{ transform: rotate(0deg) translateX(0); }
+    }
   </style>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getFirestore, doc, setDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB-ZXl5RpgKKzbickK0VJrFFY1YJ0U3qp0A",
+      authDomain: "yuri-marble.firebaseapp.com",
+      projectId: "yuri-marble",
+      storageBucket: "yuri-marble.firebasestorage.app",
+      messagingSenderId: "520132626186",
+      appId: "1:520132626186:web:9997ba54d5c0364a799cf3"
+    };
+
+    // 타일(표시용)
+    const tiles = {
+      0:  { name: "출발 💗", amount: "+20" },
+      1:  { name: "스위스 ❄️", amount: "10" },
+      2:  { name: "황금열쇠 🔑", amount: "" },
+      3:  { name: "프랑스 🥐", amount: "20" },
+      4:  { name: "무인도 🏝", amount: "2턴 정지" },
+      5:  { name: "일본 🗾", amount: "30" },
+      6:  { name: "황금열쇠 🔑", amount: "" },
+      7:  { name: "미국 🗽", amount: "40" },
+      8:  { name: "사회복지기금 💰", amount: "모인 금액 수령" },
+      9:  { name: "독일 🍺", amount: "50" },
+      10: { name: "황금열쇠 🔑", amount: "" },
+      11: { name: "태국 🌴", amount: "60" },
+      12: { name: "우주여행 🚀", amount: "랜덤 이동" },
+      13: { name: "영국 ☕", amount: "70" },
+      14: { name: "사회복지기금 접수처 🧾", amount: "-10 기부" },
+      15: { name: "서울 🏙", amount: "80" }
+    };
+
+    const layout = [
+      8,  9, 10, 11, 12,
+      7, null, null, null, 13,
+      6, null, null, null, 14,
+      5, null, null, null, 15,
+      4,  3,  2,  1,  0
+    ];
+
+    function renderTokens(p1, p2) {
+      document.querySelectorAll(".token").forEach(el => el.remove());
+
+      const c1 = document.getElementById(`tile-${p1}`);
+      if (c1) {
+        const t1 = document.createElement("div");
+        t1.className = "token p1";
+        t1.textContent = "🐶";
+        c1.appendChild(t1);
+      }
+
+      const c2 = document.getElementById(`tile-${p2}`);
+      if (c2) {
+        const t2 = document.createElement("div");
+        t2.className = "token p2";
+        t2.textContent = "😎";
+        c2.appendChild(t2);
+      }
+    }
+
+    async function main() {
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      const auth = getAuth(app);
+      await signInAnonymously(auth);
+
+      // 보드 그리기
+      const boardEl = document.getElementById("board");
+      boardEl.innerHTML = "";
+      layout.forEach((num) => {
+        const cell = document.createElement("div");
+        if (num === null) {
+          cell.className = "empty";
+          cell.innerHTML = "&nbsp;";
+        } else {
+          cell.className = "cell";
+          cell.id = `tile-${num}`;
+          if ([0,4,8,12].includes(num)) cell.classList.add("corner");
+          const t = tiles[num];
+          cell.innerHTML = `
+            <div class="tileName">${t?.name ?? num}</div>
+            <div class="tileAmt">${t?.amount ?? ""}</div>
+          `;
+        }
+        boardEl.appendChild(cell);
+      });
+
+      // 게임 상태/로컬 변수
+      const gameRef = doc(db, "games", "room1");
+      let myPlayer = null;
+      let currentPos = 0;
+      let currentPos2 = 0;
+      let latestTurn = 1;
+      let money1 = 200;
+      let money2 = 200;
+
+      // 이동 애니메이션
+      let animating = false;
+      const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+      async function animateMove(who, from, to){
+        if (animating) return;
+        animating = true;
+        let pos = from;
+        const steps = (to - from + 16) % 16;
+        for (let i=0; i<steps; i++){
+          pos = (pos + 1) % 16;
+          if (who === 1) currentPos = pos; else currentPos2 = pos;
+          renderTokens(currentPos, currentPos2);
+          await sleep(180);
+        }
+        animating = false;
+      }
+
+      // 초기값: position만 기본 보장
+      await setDoc(gameRef, { position1: 0, position2: 0 }, { merge: true });
+
+      // turn/money가 없을 때만 초기 세팅
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(gameRef);
+        const data = snap.data() || {};
+        const patch = {};
+        if (data.turn == null) patch.turn = 1;
+        if (data.money1 == null) patch.money1 = 200;
+        if (data.money2 == null) patch.money2 = 200;
+        if (Object.keys(patch).length) tx.set(gameRef, patch, { merge: true });
+      });
+
+      // 자동 좌석 배정
+      const uid = auth.currentUser.uid;
+      async function assignPlayer() {
+        const saved = localStorage.getItem("yuriMarblePlayer");
+        if (saved === "1" || saved === "2") { myPlayer = Number(saved); return; }
+
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(gameRef);
+          const data = snap.exists() ? snap.data() : {};
+          const seat1 = data.seat1 ?? null;
+          const seat2 = data.seat2 ?? null;
+
+          if (seat1 === uid) myPlayer = 1;
+          else if (seat2 === uid) myPlayer = 2;
+          else if (!seat1) { myPlayer = 1; tx.set(gameRef, { seat1: uid }, { merge: true }); }
+          else if (!seat2) { myPlayer = 2; tx.set(gameRef, { seat2: uid }, { merge: true }); }
+          else myPlayer = null;
+        });
+
+        if (myPlayer) localStorage.setItem("yuriMarblePlayer", String(myPlayer));
+      }
+      await assignPlayer();
+
+      // 주사위 굴리기(턴/실시간)
+      window.rollDice = async function () {
+        if (!myPlayer) return;
+        if (animating) return;
+
+        // 주사위 흔들림
+        const diceEl = document.getElementById("dice");
+        diceEl.classList.add("shake");
+        document.getElementById("diceResult").innerText = "...";
+        diceEl.textContent = "🎲";
+        await sleep(650);
+        diceEl.classList.remove("shake");
+
+        const dice = Math.floor(Math.random() * 6) + 1;
+        document.getElementById("diceResult").innerText = dice;
+        diceEl.textContent = dice;
+
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(gameRef);
+          const data = snap.data() || {};
+          const turn = data.turn ?? 1;
+          if (turn !== myPlayer) return;
+
+          const pos1 = data.position1 ?? 0;
+          const pos2 = data.position2 ?? 0;
+          const myPos = (myPlayer === 1) ? pos1 : pos2;
+          const next = (myPos + dice) % 16;
+
+          tx.set(gameRef, {
+            ...(myPlayer === 1 ? { position1: next } : { position2: next }),
+            turn: (myPlayer === 1 ? 2 : 1)
+          }, { merge: true });
+        });
+      };
+
+      // 실시간 렌더
+      onSnapshot(gameRef, async (snap) => {
+        const data = snap.data() || {};
+        money1 = data.money1 ?? 200;
+        money2 = data.money2 ?? 200;
+
+        const newP1 = data.position1 ?? 0;
+        const newP2 = data.position2 ?? 0;
+
+        if (newP1 !== currentPos) await animateMove(1, currentPos, newP1);
+        else currentPos = newP1;
+
+        if (newP2 !== currentPos2) await animateMove(2, currentPos2, newP2);
+        else currentPos2 = newP2;
+
+        renderTokens(currentPos, currentPos2);
+
+        const turn = data.turn ?? 1;
+        latestTurn = turn;
+
+        const btn = document.getElementById("rollBtn");
+        btn.disabled = (!myPlayer || latestTurn !== myPlayer || animating);
+
+        document.getElementById("playerLabel").textContent =
+          myPlayer
+            ? `당신은 Player ${myPlayer} ${myPlayer === 1 ? "🐶" : "😎"} / 현재 턴: Player ${turn}`
+            : `관전 모드 👀 / 현재 턴: Player ${turn}`;
+
+        document.getElementById("moneyDisplay").innerHTML =
+          `🐶 Player 1: <b>${money1}</b> 💰 &nbsp;&nbsp; | &nbsp;&nbsp; 😎 Player 2: <b>${money2}</b> 💰`;
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      main().catch((e) => {
+        console.error(e);
+        document.body.insertAdjacentHTML(
+          "beforeend",
+          `<p style="color:#b00020;font-weight:700">에러: ${String(e.message || e)}</p>`
+        );
+      });
+    });
+  </script>
 </head>
 <body>
   <h1>Yuri Marble 💗</h1>
+  <p id="playerLabel"></p>
+  <p id="moneyDisplay"></p>
 
-  <p id="playerLabel" style="font-weight:800;margin:6px 0 0;"></p>
-  <p id="moneyDisplay" style="font-weight:700;"></p>
-  
   <div id="board"></div>
 
-  <div id="modal" style="display:none;">
-  <div class="modal-backdrop"></div>
-  <div class="modal-card">
-    <div class="modal-title" id="modalTitle">타일</div>
-    <div class="modal-body" id="modalBody">설명</div>
+  <div class="controls">
+    <button id="rollBtn" onclick="rollDice()">🎲 주사위</button>
 
-    <div class="modal-actions">
-      <button id="buyBtn" onclick="buyLand()">구매</button>
-      <button id="passBtn" class="ghost" onclick="passLand()">패스</button>
+    <div id="diceBox">
+      <div id="dice">🎲</div>
+      <div>결과: <span id="diceResult">-</span></div>
     </div>
-
-    <div class="modal-hint" id="modalHint"></div>
   </div>
-</div>
-
-<div class="controls">
-  <button id="rollBtn" onclick="rollDice()">🎲 주사위</button>
-
-  <div id="diceBox" style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:10px;font-weight:800;">
-    <div id="dice" style="width:46px;height:46px;border-radius:14px;background:#fff;display:flex;justify-content:center;align-items:center;font-size:22px;box-shadow:0 10px 18px rgba(0,0,0,0.08);user-select:none;">
-      🎲
-    </div>
-    <div>결과: <span id="diceResult">-</span></div>
-  </div>
-</div>
 </body>
 </html>
