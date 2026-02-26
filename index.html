@@ -520,7 +520,7 @@ pending = data.pending || null;
         latestTurn = turn;
 
         const btn = document.getElementById("rollBtn");
-        btn.disabled = (!myPlayer || latestTurn !== myPlayer || animating);
+btn.disabled = (!myPlayer || latestTurn !== myPlayer || animating || !!pending);
 
         document.getElementById("playerLabel").textContent =
           myPlayer
