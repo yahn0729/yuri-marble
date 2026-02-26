@@ -60,6 +60,9 @@ async function assignPlayer(gameRef) {
  let money1 = 200;
 let money2 = 200;   
 
+let owned = {};          // { tileIndex: 1|2 }
+let pending = null;      // { type:"buy", tile, player, ... }  
+
 let animating = false;
 
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
@@ -89,22 +92,26 @@ async function animateMove(who, from, to){
     boardEl.innerHTML = "";
     
 const tiles = {
-  0: { name: "출발 💗", amount: "+20" },
-  1: { name: "스위스 ❄️", amount: "10" },
-  2: { name: "황금열쇠 🔑", amount: "" },
-  3: { name: "프랑스 🥐", amount: "20" },
-  4: { name: "무인도 🏝", amount: "2턴 정지" },
-  5: { name: "일본 🗾", amount: "30" },
-  6: { name: "황금열쇠 🔑", amount: "" },
-  7: { name: "미국 🗽", amount: "40" },
-  8: { name: "사회복지기금 💰", amount: "모인 금액 수령" },
-  9: { name: "독일 🍺", amount: "50" },
- 10: { name: "황금열쇠 🔑", amount: "" },
- 11: { name: "태국 🌴", amount: "60" },
- 12: { name: "우주여행 🚀", amount: "랜덤 이동" },
- 13: { name: "영국 ☕", amount: "70" },
- 14: { name: "사회복지기금 접수처 🧾", amount: "-10 기부" },
- 15: { name: "서울 🏙", amount: "80" }
+  0:  { type:"start",  name: "출발 💗", amount: "+20" },
+
+  1:  { type:"prop",   name: "스위스 ❄️", price: 10, rent: 4 },
+  2:  { type:"key",    name: "황금열쇠 🔑" },
+  3:  { type:"prop",   name: "프랑스 🥐", price: 20, rent: 6 },
+  4:  { type:"jail",   name: "무인도 🏝", amount: "2턴 정지" },
+
+  5:  { type:"prop",   name: "일본 🗾", price: 30, rent: 8 },
+  6:  { type:"key",    name: "황금열쇠 🔑" },
+  7:  { type:"prop",   name: "미국 🗽", price: 40, rent: 10 },
+  8:  { type:"fund",   name: "사회복지기금 💰", amount: "모인 금액 수령" },
+
+  9:  { type:"prop",   name: "독일 🍺", price: 50, rent: 12 },
+  10: { type:"key",    name: "황금열쇠 🔑" },
+  11: { type:"prop",   name: "태국 🌴", price: 60, rent: 14 },
+  12: { type:"travel", name: "우주여행 🚀", amount: "랜덤 이동" },
+
+  13: { type:"prop",   name: "영국 ☕", price: 70, rent: 16 },
+  14: { type:"fundpay",name: "사회복지기금 접수처 🧾", amount: "-10 기부" },
+  15: { type:"prop",   name: "서울 🏙", price: 80, rent: 18 }
 };
     
 const layout = [
@@ -152,10 +159,9 @@ await setDoc(gameRef, {
 await runTransaction(db, async (tx) => {
   const snap = await tx.get(gameRef);
   const data = snap.data() || {};
-  if (data.turn == null) {
-    tx.set(gameRef, { turn: 1 }, { merge: true });
-  }
-});  
+  if (data.owned == null) tx.set(gameRef, { owned: {} }, { merge: true });
+  if (data.pending == null) tx.set(gameRef, { pending: null }, { merge: true });
+}); 
     
 await assignPlayer(gameRef);
 
@@ -167,6 +173,9 @@ else label.textContent = "관전 모드 👀";
     
 onSnapshot(gameRef, async (snap) => {
   const data = snap.data() || {};
+
+owned = data.owned || {};
+pending = data.pending || null;
 
   money1 = data.money1 ?? 200;
   money2 = data.money2 ?? 200;
@@ -203,32 +212,165 @@ document.getElementById("moneyDisplay").innerHTML =
   `Player 1: <b>${money1}</b> 💰 &nbsp;&nbsp; | &nbsp;&nbsp; Player 2: <b>${money2}</b> 💰`;
 });
 
-window.rollDice = async function () {
-  if (!latestTurn) return; // 안전장치
-  if (!myPlayer) return;
-  if (latestTurn !== myPlayer) return; // 내 턴 아니면 무시
+    
+function showModal(show) {
+  document.getElementById("modal").style.display = show ? "block" : "none";
+}
 
- const diceEl = document.getElementById("dice");
+function renderPendingModal() {
+  if (!pending) { showModal(false); return; }
+
+  // buy만 이번 단계에서 처리
+  if (pending.type !== "buy") { showModal(false); return; }
+
+  const t = tiles[pending.tile];
+  const titleEl = document.getElementById("modalTitle");
+  const bodyEl  = document.getElementById("modalBody");
+  const hintEl  = document.getElementById("modalHint");
+  const buyBtn  = document.getElementById("buyBtn");
+  const passBtn = document.getElementById("passBtn");
+
+  titleEl.textContent = `${t?.name ?? ("타일 " + pending.tile)}`;
+  bodyEl.innerHTML =
+    `매입가: <b>${pending.price}</b> 💰<br>` +
+    `통행료(대지): <b>${pending.rentLand}</b> 💸<br>` +
+    `건물가(예정): <b>${pending.buildPrice}</b> 🏗️<br>` +
+    `통행료(건물): <b>${pending.rentBuilding}</b> 💥`;
+
+  const isMyChoice = (myPlayer && pending.player === myPlayer);
+  buyBtn.disabled = !isMyChoice;
+  passBtn.disabled = !isMyChoice;
+
+  hintEl.textContent = isMyChoice
+    ? "선택하세요: 구매 또는 패스"
+    : `Player ${pending.player}가 선택 중...`;
+
+  showModal(true);
+}
+
+   renderPendingModal();
+});
+    
+window.rollDice = async function () {
+  if (!myPlayer) return;
+
+  // 주사위 애니메이션(유리 버전 유지)
+  const diceEl = document.getElementById("dice");
   diceEl.classList.add("shake");
   document.getElementById("diceResult").innerText = "...";
   diceEl.textContent = "🎲";
-
   await new Promise(r => setTimeout(r, 650));
   diceEl.classList.remove("shake");
 
   const dice = Math.floor(Math.random() * 6) + 1;
-
   document.getElementById("diceResult").innerText = dice;
   diceEl.textContent = dice;
 
-  const myPos = (myPlayer === 1) ? currentPos : currentPos2;
-  const next = (myPos + dice) % 16;
+  // ✅ 핵심: 트랜잭션으로 "내 턴인지 + pending 없는지" 확인하고 처리
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(gameRef);
+    const data = snap.data() || {};
 
-  await setDoc(gameRef, {
-    ...(myPlayer === 1 ? { position1: next } : { position2: next }),
-    turn: (myPlayer === 1 ? 2 : 1)
-  }, { merge: true });
+    const turn = data.turn ?? 1;
+    const pend = data.pending ?? null;
+    if (turn !== myPlayer) return;       // 내 턴 아니면 무시
+    if (pend) return;                    // 이미 선택 진행중이면 무시
+
+    const pos1 = data.position1 ?? 0;
+    const pos2 = data.position2 ?? 0;
+    const myPos = (myPlayer === 1) ? pos1 : pos2;
+
+    const next = (myPos + dice) % 16;
+
+    // 우선 위치만 업데이트(턴은 아직 안 넘김!)
+    tx.set(gameRef, (myPlayer === 1) ? { position1: next } : { position2: next }, { merge: true });
+
+    // 땅(대지)이고, 무소유면 pending(buy) 생성
+    const t = tiles[next];
+    const ownedNow = data.owned || {};
+    const owner = ownedNow[String(next)] ?? null;
+
+    if (t?.type === "prop" && !owner) {
+      const price = t.price;
+      const rentLand = t.rent;                 // 기존 rent 사용
+      const buildPrice = Math.round(price / 2);
+      const rentBuilding = rentLand * 3;       // 유리 확정 룰
+
+      tx.set(gameRef, {
+        pending: {
+          type: "buy",
+          tile: next,
+          player: myPlayer,
+          price,
+          rentLand,
+          buildPrice,
+          rentBuilding
+        }
+      }, { merge: true });
+
+      // ✅ pending 있으면 턴은 선택 끝난 후에 넘길 거라 여기서 종료
+      return;
+    }
+
+    // (이번 단계에서는) 땅 아니거나/이미 소유면 그냥 턴 넘김(통행료는 다음 단계에서!)
+    tx.set(gameRef, { turn: (myPlayer === 1 ? 2 : 1) }, { merge: true });
+  });
 };
+
+window.buyLand = async function () {
+  if (!myPlayer) return;
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(gameRef);
+    const data = snap.data() || {};
+    const pend = data.pending;
+    if (!pend || pend.type !== "buy") return;
+    if (pend.player !== myPlayer) return;
+
+    const tile = pend.tile;
+    const price = pend.price;
+
+    const ownedNow = data.owned || {};
+    if (ownedNow[String(tile)]) return; // 이미 누가 샀으면 종료
+
+    const m1 = data.money1 ?? 200;
+    const m2 = data.money2 ?? 200;
+    const myMoney = (myPlayer === 1) ? m1 : m2;
+    if (myMoney < price) {
+      // 돈 부족이면 그냥 패스로 처리(간단)
+      tx.set(gameRef, { pending: null, turn: (myPlayer === 1 ? 2 : 1) }, { merge: true });
+      return;
+    }
+
+    // 소유권 등록
+    ownedNow[String(tile)] = myPlayer;
+
+    // 돈 차감 + pending 제거 + 턴 넘김
+    tx.set(gameRef, {
+      owned: ownedNow,
+      ...(myPlayer === 1 ? { money1: myMoney - price } : { money2: myMoney - price }),
+      pending: null,
+      turn: (myPlayer === 1 ? 2 : 1)
+    }, { merge: true });
+  });
+};
+
+window.passLand = async function () {
+  if (!myPlayer) return;
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(gameRef);
+    const data = snap.data() || {};
+    const pend = data.pending;
+    if (!pend || pend.type !== "buy") return;
+    if (pend.player !== myPlayer) return;
+
+    tx.set(gameRef, {
+      pending: null,
+      turn: (myPlayer === 1 ? 2 : 1)
+    }, { merge: true });
+  });
+};   
   }
 
   // 모바일에서 DOM 준비 보장
@@ -363,6 +505,48 @@ function renderTokens(p1, p2) {
   100%{ transform: rotate(0deg) translateX(0); }
 }
     
+  #modal { position: fixed; inset: 0; z-index: 9999; }
+.modal-backdrop{
+  position:absolute; inset:0;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(2px);
+}
+.modal-card{
+  position:absolute; left:50%; top:50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, calc(100vw - 28px));
+  background: #fff;
+  border-radius: 18px;
+  padding: 14px 14px 12px;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.22);
+  text-align: left;
+}
+.modal-title{ font-weight: 900; font-size: 16px; margin-bottom: 8px; }
+.modal-body{ font-weight: 800; font-size: 13px; opacity: .85; line-height: 1.45; }
+.modal-actions{
+  display:flex; gap:10px;
+  margin-top: 12px;
+}
+.modal-actions button{
+  flex:1;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 12px;
+  background: #ff5aa5;
+  color: #fff;
+  font-weight: 900;
+  cursor:pointer;
+}
+.modal-actions button.ghost{
+  background: #f2f2f2;
+  color: #333;
+}
+.modal-actions button:disabled{
+  opacity: .45;
+  cursor: not-allowed;
+}
+.modal-hint{ margin-top: 10px; font-size: 12px; font-weight: 800; opacity: .7; }
+    
   </style>
 </head>
 <body>
@@ -372,6 +556,21 @@ function renderTokens(p1, p2) {
   <p id="moneyDisplay" style="font-weight:700;"></p>
   
   <div id="board"></div>
+
+  <div id="modal" style="display:none;">
+  <div class="modal-backdrop"></div>
+  <div class="modal-card">
+    <div class="modal-title" id="modalTitle">타일</div>
+    <div class="modal-body" id="modalBody">설명</div>
+
+    <div class="modal-actions">
+      <button id="buyBtn" onclick="buyLand()">구매</button>
+      <button id="passBtn" class="ghost" onclick="passLand()">패스</button>
+    </div>
+
+    <div class="modal-hint" id="modalHint"></div>
+  </div>
+</div>
 
 <div class="controls">
   <button id="rollBtn" onclick="rollDice()">🎲 주사위</button>
