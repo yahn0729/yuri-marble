@@ -137,23 +137,27 @@
 
     // 타일(표시용)
     const tiles = {
-      0:  { name: "출발 💗", amount: "+20" },
-      1:  { name: "스위스 ❄️", amount: "10" },
-      2:  { name: "황금열쇠 🔑", amount: "" },
-      3:  { name: "프랑스 🥐", amount: "20" },
-      4:  { name: "무인도 🏝", amount: "2턴 정지" },
-      5:  { name: "일본 🗾", amount: "30" },
-      6:  { name: "황금열쇠 🔑", amount: "" },
-      7:  { name: "미국 🗽", amount: "40" },
-      8:  { name: "사회복지기금 💰", amount: "모인 금액 수령" },
-      9:  { name: "독일 🍺", amount: "50" },
-      10: { name: "황금열쇠 🔑", amount: "" },
-      11: { name: "태국 🌴", amount: "60" },
-      12: { name: "우주여행 🚀", amount: "랜덤 이동" },
-      13: { name: "영국 ☕", amount: "70" },
-      14: { name: "사회복지기금 접수처 🧾", amount: "-10 기부" },
-      15: { name: "서울 🏙", amount: "80" }
-    };
+  0:  { type:"start",  name: "출발 💗", amount: "+20" },
+
+  1:  { type:"prop",   name: "스위스 ❄️", price: 10, rent: 4 },
+  2:  { type:"key",    name: "황금열쇠 🔑" },
+  3:  { type:"prop",   name: "프랑스 🥐", price: 20, rent: 6 },
+  4:  { type:"jail",   name: "무인도 🏝", amount: "2턴 정지" },
+
+  5:  { type:"prop",   name: "일본 🗾", price: 30, rent: 8 },
+  6:  { type:"key",    name: "황금열쇠 🔑" },
+  7:  { type:"prop",   name: "미국 🗽", price: 40, rent: 10 },
+  8:  { type:"fund",   name: "사회복지기금 💰", amount: "모인 금액 수령" },
+
+  9:  { type:"prop",   name: "독일 🍺", price: 50, rent: 12 },
+  10: { type:"key",    name: "황금열쇠 🔑" },
+  11: { type:"prop",   name: "태국 🌴", price: 60, rent: 14 },
+  12: { type:"travel", name: "우주여행 🚀", amount: "랜덤 이동" },
+
+  13: { type:"prop",   name: "영국 ☕", price: 70, rent: 16 },
+  14: { type:"fundpay",name: "사회복지기금 접수처 🧾", amount: "-10 기부" },
+  15: { type:"prop",   name: "서울 🏙", price: 80, rent: 18 }
+};
 
     const layout = [
       8,  9, 10, 11, 12,
