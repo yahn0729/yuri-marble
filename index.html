@@ -254,6 +254,9 @@
       }
     }
 
+      let owned = {};
+      let pending = null;
+    
     async function main() {
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
@@ -301,8 +304,6 @@ layout.forEach((num) => {
       let latestTurn = 1;
       let money1 = 200;
       let money2 = 200;
-      let owned = {};
-      let pending = null; // { type:"buy", tile, player, price }
       
 function showToast(msg){
   const el = document.getElementById("toast");
