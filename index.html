@@ -223,7 +223,6 @@
       let money1 = 200;
       let money2 = 200;
       let owned = {};
-      let pending = null;
 
       // 이동 애니메이션
       let animating = false;
@@ -249,11 +248,7 @@
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(gameRef);
         const data = snap.data() || {};
-        if (data.pending == null) {
-    tx.set(gameRef, { pending: null }, { merge: true });
-  }
-          owned = data.owned || {};
-         pending = data.pending || null;
+        owned = data.owned || {};
         const patch = {};
         if (data.turn == null) patch.turn = 1;
         if (data.money1 == null) patch.money1 = 200;
@@ -284,79 +279,40 @@
       }
       await assignPlayer();
 
-window.rollDice = async function () {
-  if (!myPlayer) return;
-  if (animating) return;
+      // 주사위 굴리기(턴/실시간)
+      window.rollDice = async function () {
+        if (!myPlayer) return;
+        if (animating) return;
 
-  // 🎲 주사위 애니메이션 (그대로)
-  const diceEl = document.getElementById("dice");
-  diceEl.classList.add("shake");
-  document.getElementById("diceResult").innerText = "...";
-  diceEl.textContent = "🎲";
-  await sleep(650);
-  diceEl.classList.remove("shake");
+        // 주사위 흔들림
+        const diceEl = document.getElementById("dice");
+        diceEl.classList.add("shake");
+        document.getElementById("diceResult").innerText = "...";
+        diceEl.textContent = "🎲";
+        await sleep(650);
+        diceEl.classList.remove("shake");
 
-  const dice = Math.floor(Math.random() * 6) + 1;
-  document.getElementById("diceResult").innerText = dice;
-  diceEl.textContent = dice;
+        const dice = Math.floor(Math.random() * 6) + 1;
+        document.getElementById("diceResult").innerText = dice;
+        diceEl.textContent = dice;
 
-  // ✅ 핵심: 트랜잭션에서 position + pending 같이 저장
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(gameRef);
-    const data = snap.data() || {};
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(gameRef);
+          const data = snap.data() || {};
+          const turn = data.turn ?? 1;
+          if (turn !== myPlayer) return;
 
-    const turn = data.turn ?? 1;
-    if (turn !== myPlayer) return;
+          const pos1 = data.position1 ?? 0;
+          const pos2 = data.position2 ?? 0;
+          const myPos = (myPlayer === 1) ? pos1 : pos2;
+          const next = (myPos + dice) % 16;
 
-    // 이미 pending 있으면(구매 선택 중이면) 굴리기 막기
-    if (data.pending) return;
-
-    const ownedNow = data.owned || {};
-
-    const pos1 = data.position1 ?? 0;
-    const pos2 = data.position2 ?? 0;
-    const myPos = (myPlayer === 1) ? pos1 : pos2;
-
-    const next = (myPos + dice) % 16;
-    const t = tiles[next];
-
-    // 1) 일단 "도착"은 무조건 반영 (말 이동이 보이게)
-    tx.set(
-      gameRef,
-      (myPlayer === 1) ? { position1: next } : { position2: next },
-      { merge: true }
-    );
-
-    // 2) 무소유 prop이면 pending 생성 (턴은 아직 안 넘김)
-    const isProp = (t?.type === "prop");
-    const owner = ownedNow[String(next)] ?? null;
-
-    if (isProp && !owner) {
-      const price = t.price;
-      const rentLand = t.rent;
-      const buildPrice = Math.round(price / 2);
-      const rentBuilding = rentLand * 3; // 유리 확정 룰
-
-      tx.set(gameRef, {
-        pending: {
-          type: "buy",
-          tile: next,
-          player: myPlayer,
-          price,
-          rentLand,
-          buildPrice,
-          rentBuilding
-        }
-      }, { merge: true });
-
-      return; // ✅ pending 있으면 선택 후에 턴 넘길 거라 여기서 끝
-    }
-
-    // 3) prop이 아니거나 이미 소유면(초미니 단계) 그냥 턴 넘김
-    tx.set(gameRef, { turn: (myPlayer === 1 ? 2 : 1) }, { merge: true });
-  });
-};
-
+          tx.set(gameRef, {
+            ...(myPlayer === 1 ? { position1: next } : { position2: next }),
+            turn: (myPlayer === 1 ? 2 : 1)
+          }, { merge: true });
+        });
+      };
 
       // 실시간 렌더
       onSnapshot(gameRef, async (snap) => {
