@@ -176,16 +176,6 @@
   max-width: calc(100vw - 40px);
 }
     
-.owner1 {
-  background-color: #f3c1ca;  /* 애쉬핑크 */
-  color: #1f1f1f;
-}
-
-.owner2 {
-  background-color: #c7e6ff;  /* 베이비블루 */
-  color: #1f1f1f;
-}
-    
   </style>
 
   <script type="module">
@@ -278,13 +268,6 @@
             <div class="tileName">${t?.name ?? num}</div>
             <div class="tileAmt">${t?.amount ?? ""}</div>
           `;
-            const owner = owned[String(num)] ?? null;
-          
-            cell.classList.remove("owner1", "owner2");
-
-  if (owner === 1) cell.classList.add("owner1");
-  if (owner === 2) cell.classList.add("owner2");
-}
         }
         boardEl.appendChild(cell);
       });
