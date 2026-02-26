@@ -180,7 +180,7 @@ onSnapshot(gameRef, async (snap) => {
   const turn = data.turn ?? 1;
   latestTurn = turn;
 
-  const btn = document.querySelector(".controls button");
+const btn = document.getElementById("rollBtn");
   btn.disabled = (!myPlayer || turn !== myPlayer);
 
   document.getElementById("playerLabel").textContent =
@@ -194,13 +194,22 @@ window.rollDice = async function () {
   if (!myPlayer) return;
   if (latestTurn !== myPlayer) return; // 내 턴 아니면 무시
 
+ const diceEl = document.getElementById("dice");
+  diceEl.classList.add("shake");
+  document.getElementById("diceResult").innerText = "...";
+  diceEl.textContent = "🎲";
+
+  await new Promise(r => setTimeout(r, 650));
+  diceEl.classList.remove("shake");
+
   const dice = Math.floor(Math.random() * 6) + 1;
+
   document.getElementById("diceResult").innerText = dice;
+  diceEl.textContent = dice;
 
   const myPos = (myPlayer === 1) ? currentPos : currentPos2;
   const next = (myPos + dice) % 16;
 
-  // ✅ 내 말 이동 + 턴 넘기기
   await setDoc(gameRef, {
     ...(myPlayer === 1 ? { position1: next } : { position2: next }),
     turn: (myPlayer === 1 ? 2 : 1)
@@ -328,6 +337,18 @@ function renderTokens(p1, p2) {
 .controls button:active{
     transform: scale(0.98);
   }
+
+  #dice.shake {
+  animation: shake 0.35s linear 2;
+}
+@keyframes shake{
+  0%{ transform: rotate(0deg) translateX(0); }
+  25%{ transform: rotate(-8deg) translateX(-2px); }
+  50%{ transform: rotate(8deg) translateX(2px); }
+  75%{ transform: rotate(-6deg) translateX(-2px); }
+  100%{ transform: rotate(0deg) translateX(0); }
+}
+    
   </style>
 </head>
 <body>
@@ -338,8 +359,14 @@ function renderTokens(p1, p2) {
   <div id="board"></div>
 
 <div class="controls">
-  <button onclick="rollDice()">🎲 주사위</button>
-  <p>주사위 결과: <span id="diceResult">-</span></p>
+  <button id="rollBtn" onclick="rollDice()">🎲 주사위</button>
+
+  <div id="diceBox" style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:10px;font-weight:800;">
+    <div id="dice" style="width:46px;height:46px;border-radius:14px;background:#fff;display:flex;justify-content:center;align-items:center;font-size:22px;box-shadow:0 10px 18px rgba(0,0,0,0.08);user-select:none;">
+      🎲
+    </div>
+    <div>결과: <span id="diceResult">-</span></div>
+  </div>
 </div>
 </body>
 </html>
