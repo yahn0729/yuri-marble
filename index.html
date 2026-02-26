@@ -6,7 +6,7 @@
   <title>Yuri Marble 💗</title>
  <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
   const firebaseConfig = {
@@ -25,6 +25,33 @@
 
     await signInAnonymously(auth);
 
+  const uid = auth.currentUser.uid;
+let myPlayer = null;
+
+async function assignPlayer(gameRef) {
+  const saved = localStorage.getItem("yuriMarblePlayer");
+  if (saved === "1" || saved === "2") {
+    myPlayer = Number(saved);
+    return;
+  }
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(gameRef);
+    const data = snap.exists() ? snap.data() : {};
+
+    const seat1 = data.seat1 ?? null;
+    const seat2 = data.seat2 ?? null;
+
+    if (seat1 === uid) myPlayer = 1;
+    else if (seat2 === uid) myPlayer = 2;
+    else if (!seat1) { myPlayer = 1; tx.set(gameRef, { seat1: uid }, { merge: true }); }
+    else if (!seat2) { myPlayer = 2; tx.set(gameRef, { seat2: uid }, { merge: true }); }
+    else myPlayer = null;
+  });
+
+  if (myPlayer) localStorage.setItem("yuriMarblePlayer", String(myPlayer));
+}
+    
   let currentPos = 0;
   let currentPos2 = 0;
 
@@ -87,7 +114,15 @@ layout.forEach((num) => {
     // 실시간 데이터
     const gameRef = doc(db, "games", "room1");
     await setDoc(gameRef, { position1: 0, position2: 0 }, { merge: true });
+    
+await assignPlayer(gameRef);
 
+
+const label = document.getElementById("playerLabel");
+if (myPlayer === 1) label.textContent = "당신은 Player 1 🐶";
+else if (myPlayer === 2) label.textContent = "당신은 Player 2 😎";
+else label.textContent = "관전 모드 👀";
+    
 onSnapshot(gameRef, (snap) => {
   const data = snap.data() || {};
   currentPos  = data.position1 ?? 0;
@@ -231,6 +266,9 @@ function renderTokens(p1, p2) {
 </head>
 <body>
   <h1>Yuri Marble 💗</h1>
+
+  <p id="playerLabel" style="font-weight:800;margin:6px 0 0;"></p>
+  
   <div id="board"></div>
 
 <div class="controls">
