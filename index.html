@@ -175,6 +175,16 @@
   z-index: 1000;
   max-width: calc(100vw - 40px);
 }
+
+  .owner1 {
+  background-color: #f3c1ca;  /* 애쉬핑크 */
+  color: #1f1f1f;
+}
+
+.owner2 {
+  background-color: #c7e6ff;  /* 베이비블루 */
+  color: #1f1f1f;
+}  
     
   </style>
 
@@ -250,27 +260,38 @@
       const auth = getAuth(app);
       await signInAnonymously(auth);
 
-      // 보드 그리기
-      const boardEl = document.getElementById("board");
-      boardEl.innerHTML = "";
-      layout.forEach((num) => {
-        const cell = document.createElement("div");
-        if (num === null) {
-          cell.className = "empty";
-          cell.innerHTML = "&nbsp;";
-        } else {
-          cell.className = "cell";
-          cell.id = `tile-${num}`;
-          if ([0,4,8,12].includes(num)) cell.classList.add("corner");
-          
-          const t = tiles[num];
-          cell.innerHTML = `
-            <div class="tileName">${t?.name ?? num}</div>
-            <div class="tileAmt">${t?.amount ?? ""}</div>
-          `;
-        }
-        boardEl.appendChild(cell);
-      });
+// 보드 그리기
+const boardEl = document.getElementById("board");
+boardEl.innerHTML = "";
+
+layout.forEach((num) => {
+  const cell = document.createElement("div");
+
+  if (num === null) {
+    cell.className = "empty";
+    cell.innerHTML = "&nbsp;";
+  } else {
+    cell.className = "cell";
+    cell.id = `tile-${num}`;
+    if ([0, 4, 8, 12].includes(num)) cell.classList.add("corner");
+
+    const t = tiles[num];
+
+    // ✅ 여기 반드시 백틱(`)으로!
+    cell.innerHTML = `
+      <div class="tileName">${t?.name ?? num}</div>
+      <div class="tileAmt">${t?.amount ?? ""}</div>
+    `;
+
+    // ✅ 소유 색 적용
+    const owner = owned?.[String(num)] ?? null;
+    cell.classList.remove("owner1", "owner2");
+    if (owner === 1) cell.classList.add("owner1");
+    if (owner === 2) cell.classList.add("owner2");
+  }
+
+  boardEl.appendChild(cell);
+});
 
       // 게임 상태/로컬 변수
       const gameRef = doc(db, "games", "room1");
