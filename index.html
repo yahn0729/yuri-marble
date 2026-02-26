@@ -539,6 +539,16 @@ document.getElementById("moneyDisplay").innerHTML =
 } else {
   closeBuyModal();
 }
+  if (!pending && myPlayer) {
+  const myPosNow = (myPlayer === 1) ? (data.position1 ?? 0) : (data.position2 ?? 0);
+  const t = tiles[myPosNow];
+  if (t?.type === "prop") {
+    const ownerNow = owned[String(myPosNow)] ?? null;
+    if (ownerNow && ownerNow !== myPlayer) {
+      showToast("이미 누군가 소유한 땅이라 구매할 수 없어요!");
+    }
+  }
+}      
       });     
     }
 
