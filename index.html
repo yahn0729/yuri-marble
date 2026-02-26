@@ -57,6 +57,9 @@ async function assignPlayer(gameRef) {
 
  let latestTurn = 1; 
 
+ let money1 = 200;
+let money2 = 200;   
+
 let animating = false;
 
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
@@ -139,7 +142,12 @@ layout.forEach((num) => {
 
     // 실시간 데이터
     const gameRef = doc(db, "games", "room1");
-await setDoc(gameRef, { position1: 0, position2: 0 }, { merge: true });
+await setDoc(gameRef, { 
+  position1: 0, 
+  position2: 0,
+  money1: 200,
+  money2: 200
+}, { merge: true });
     
 await runTransaction(db, async (tx) => {
   const snap = await tx.get(gameRef);
@@ -159,6 +167,9 @@ else label.textContent = "관전 모드 👀";
     
 onSnapshot(gameRef, async (snap) => {
   const data = snap.data() || {};
+
+  money1 = data.money1 ?? 200;
+  money2 = data.money2 ?? 200;
 
   const newP1 = data.position1 ?? 0;
   const newP2 = data.position2 ?? 0;
@@ -187,6 +198,9 @@ const btn = document.getElementById("rollBtn");
     myPlayer
       ? `당신은 Player ${myPlayer} ${myPlayer === 1 ? "🐶" : "😎"} / 현재 턴: Player ${turn}`
       : `관전 모드 👀 / 현재 턴: Player ${turn}`;
+
+  document.getElementById("moneyDisplay").textContent =
+  `🐶 P1 돈: ${money1}   |   😎 P2 돈: ${money2}`;
 });
 
 window.rollDice = async function () {
@@ -355,6 +369,7 @@ function renderTokens(p1, p2) {
   <h1>Yuri Marble 💗</h1>
 
   <p id="playerLabel" style="font-weight:800;margin:6px 0 0;"></p>
+  <p id="moneyDisplay" style="font-weight:700;"></p>
   
   <div id="board"></div>
 
