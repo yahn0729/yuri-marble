@@ -18,7 +18,7 @@
     appId: "1:520132626186:web:9997ba54d5c0364a799cf3"
   };
 
-  async function main() {
+  async function () {
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
@@ -210,6 +210,9 @@ const btn = document.getElementById("rollBtn");
 
 document.getElementById("moneyDisplay").innerHTML =
   `Player 1: <b>${money1}</b> 💰 &nbsp;&nbsp; | &nbsp;&nbsp; Player 2: <b>${money2}</b> 💰`;
+
+renderPendingModal();
+  
 });
 
     
@@ -248,9 +251,6 @@ function renderPendingModal() {
   showModal(true);
 }
 
-   renderPendingModal();
-});
-    
 window.rollDice = async function () {
   if (!myPlayer) return;
 
