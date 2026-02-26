@@ -280,7 +280,107 @@
       let money2 = 200;
       let owned = {};
       let pending = null; // { type:"buy", tile, player, price }
+      
+function showToast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(window.__toastT);
+  window.__toastT = setTimeout(() => (el.style.display="none"), 1400);
+}
 
+function openBuyModal(tileNum){
+  const t = tiles[tileNum];
+  const price = t?.price ?? 0;
+
+  document.getElementById("modalTitle").textContent =
+    `땅 구매: ${t?.name ?? tileNum}`;
+
+  document.getElementById("modalDesc").innerHTML =
+    `가격: <b>${price}</b> 💰<br/>구매하시겠어요?`;
+
+  document.getElementById("modalBackdrop").style.display = "flex";
+}
+
+function closeBuyModal(){
+  document.getElementById("modalBackdrop").style.display = "none";
+}
+
+window.confirmBuy = async function(){
+  await resolvePending("buy");
+};
+
+window.passBuy = async function(){
+  await resolvePending("pass");
+};
+
+async function resolvePending(action){
+  if (!myPlayer) return;
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(gameRef);
+    const data = snap.data() || {};
+    const p = data.pending || null;
+    if (!p) return;
+    if (p.type !== "buy") return;
+    if (p.player !== myPlayer) return;
+
+    const tile = p.tile;
+    const t = tiles[tile];
+    if (t?.type !== "prop") {
+      tx.set(gameRef, { pending: null }, { merge: true });
+      return;
+    }
+
+    const ownedNow = data.owned || {};
+    const already = ownedNow[String(tile)] ?? null;
+
+    // 이미 다른 사람이 소유했으면 그냥 종료
+    if (already) {
+      tx.set(gameRef, {
+        pending: null,
+        turn: (myPlayer === 1 ? 2 : 1)
+      }, { merge: true });
+      return;
+    }
+
+    if (action === "buy"){
+      const price = t.price ?? 0;
+      const m1 = data.money1 ?? 200;
+      const m2 = data.money2 ?? 200;
+      const myMoney = (myPlayer === 1) ? m1 : m2;
+
+      if (myMoney < price) {
+        // 돈 부족 -> 그냥 패스
+        tx.set(gameRef, {
+          pending: null,
+          turn: (myPlayer === 1 ? 2 : 1)
+        }, { merge: true });
+        return;
+      }
+
+      ownedNow[String(tile)] = myPlayer;
+
+      const patchMoney = (myPlayer === 1)
+        ? { money1: myMoney - price }
+        : { money2: myMoney - price };
+
+      tx.set(gameRef, {
+        owned: ownedNow,
+        ...patchMoney,
+        pending: null,
+        turn: (myPlayer === 1 ? 2 : 1)
+      }, { merge: true });
+
+    } else {
+      // 패스
+      tx.set(gameRef, {
+        pending: null,
+        turn: (myPlayer === 1 ? 2 : 1)
+      }, { merge: true });
+    }
+  });
+}
       // 이동 애니메이션
       let animating = false;
       const sleep = (ms) => new Promise(r => setTimeout(r, ms));
