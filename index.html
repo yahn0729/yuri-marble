@@ -357,12 +357,6 @@ window.rollDice = async function () {
   });
 };
 
-          tx.set(gameRef, {
-            ...(myPlayer === 1 ? { position1: next } : { position2: next }),
-            turn: (myPlayer === 1 ? 2 : 1)
-          }, { merge: true });
-        });
-      };
 
       // 실시간 렌더
       onSnapshot(gameRef, async (snap) => {
