@@ -18,7 +18,7 @@
     appId: "1:520132626186:web:9997ba54d5c0364a799cf3"
   };
 
-  async function () {
+async function main() {
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
@@ -65,9 +65,9 @@ let pending = null;      // { type:"buy", tile, player, ... }
 
 let animating = false;
 
-function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+ sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
-async function animateMove(who, from, to){
+async  animateMove(who, from, to){
   if (animating) return;
   animating = true;
 
@@ -216,11 +216,11 @@ renderPendingModal();
 });
 
     
-function showModal(show) {
+ showModal(show) {
   document.getElementById("modal").style.display = show ? "block" : "none";
 }
 
-function renderPendingModal() {
+ renderPendingModal() {
   if (!pending) { showModal(false); return; }
 
   // buy만 이번 단계에서 처리
