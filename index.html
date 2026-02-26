@@ -232,6 +232,15 @@
         animating = true;
         let pos = from;
         const steps = (to - from + 16) % 16;
+
+        const t = tiles[next];
+const isProp = t?.type === "prop";
+const owner = owned[String(next)] ?? null;
+
+if (isProp && !owner) {
+  console.log("🟩 무소유 땅 도착!", next, t.name);
+}
+        
         for (let i=0; i<steps; i++){
           pos = (pos + 1) % 16;
           if (who === 1) currentPos = pos; else currentPos2 = pos;
