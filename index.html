@@ -200,7 +200,7 @@ const btn = document.getElementById("rollBtn");
       : `관전 모드 👀 / 현재 턴: Player ${turn}`;
 
   document.getElementById("moneyDisplay").textContent =
-  `🐶 P1 돈: ${money1}   |   😎 P2 돈: ${money2}`;
+  `Player 1: <b>${money1}</b> 💰 &nbsp;&nbsp; | &nbsp;&nbsp; Player 2: <b>${money2}</b> 💰`;
 });
 
 window.rollDice = async function () {
