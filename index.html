@@ -95,13 +95,15 @@ onSnapshot(gameRef, (snap) => {
   renderTokens(currentPos, currentPos2);
 });
 
-window.rollDice = function () {
+window.rollDice = async function () {
   const dice = Math.floor(Math.random() * 6) + 1;
   document.getElementById("diceResult").innerText = dice;
 
-    const next = (currentPos + dice) % 16;
-  currentPos = next;
-  renderTokens(currentPos, currentPos2);
+  const next = (currentPos + dice) % 16;
+
+  await setDoc(gameRef, {
+    position1: next
+  }, { merge: true });
 };
   }
 
