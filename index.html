@@ -631,34 +631,24 @@ async function resolvePending(action){
     return;
   }
 
-  // 2.5) 상대 소유 땅: 통행료 + 게임오버
-  if (isProp && owner && owner !== myPlayer) {
-    const rent = t.rent ?? 0;
+// 2.5) 상대 소유 땅: 통행료 + 게임오버
+if (isProp && owner && owner !== myPlayer) {
+  const rent = t.rent ?? 0;
 
-    if (myPlayer === 1) {
-      m1 -= rent;
-      m2 += rent;
-    } else {
-      m2 -= rent;
-      m1 += rent;
-    }
+  if (myPlayer === 1) {
+    m1 -= rent;
+    m2 += rent;
+  } else {
+    m2 -= rent;
+    m1 += rent;
+  }
 
-    const payerMoney = (myPlayer === 1) ? m1 : m2;
-    if (payerMoney <= 0) {
-      if (myPlayer === 1) m1 = 0;
-      else m2 = 0;
+  const payerMoney = (myPlayer === 1) ? m1 : m2;
 
-      tx.set(gameRef, {
-        ...movePatch,
-        owned: ownedNow,
-        money1: m1,
-        money2: m2,
-        pending: null,
-        gameOver: true,
-        winner: owner
-      }, { merge: true });
-      return;
-    }
+  // ✅ 파산(게임오버)이면 기존대로 종료
+  if (payerMoney <= 0) {
+    if (myPlayer === 1) m1 = 0;
+    else m2 = 0;
 
     tx.set(gameRef, {
       ...movePatch,
@@ -666,10 +656,30 @@ async function resolvePending(action){
       money1: m1,
       money2: m2,
       pending: null,
-      turn: (myPlayer === 1 ? 2 : 1)
+      gameOver: true,
+      winner: owner
     }, { merge: true });
     return;
   }
+
+  // ✅ 파산 아니면: 모두에게 보여줄 "통행료 이벤트"를 pending에 기록
+  tx.set(gameRef, {
+    ...movePatch,
+    owned: ownedNow,
+    money1: m1,
+    money2: m2,
+    pending: {
+      type: "rent",
+      tile: next,
+      player: myPlayer, // 돈 낸 사람
+      owner,            // 돈 받은 사람
+      rent
+    },
+    turn: (myPlayer === 1 ? 2 : 1)
+  }, { merge: true });
+
+  return;
+}
 
   // 3) 그 외: 그냥 턴 넘김
   tx.set(gameRef, {
@@ -765,11 +775,50 @@ if (!pendingKey) {
 } else if (pendingKey !== lastPendingKey) {
   lastPendingKey = pendingKey;
 
-  if (pending.type === "buy" && myPlayer && pending.player === myPlayer) {
-    openBuyModal(pending.tile);
+ if (pending.type === "buy" && myPlayer && pending.player === myPlayer) {
+  openBuyModal(pending.tile);
+
+} else if (pending.type === "rent") {
+
+  const tileNum = pending.tile;
+  const rent = pending.rent;
+  const payer = pending.player;
+  const owner = pending.owner;
+
+  let message = "";
+
+  if (myPlayer === payer) {
+    message = `💸 통행료 ${rent} 💰를 지불했습니다.`;
+  } else if (myPlayer === owner) {
+    message = `💰 상대가 통행료 ${rent} 💰를 지불했습니다!`;
   } else {
-    closeBuyModal();
+    message = `📣 Player ${payer} → Player ${owner}<br/>통행료 ${rent} 💰`;
   }
+
+  // 기존 모달 재사용
+  document.getElementById("modalTitle").textContent = "통행료";
+  document.getElementById("modalDesc").innerHTML = message;
+  document.querySelector("#modal .actions").style.display = "none";
+  document.getElementById("modalBackdrop").style.display = "flex";
+
+  // 🔥 1초 후 자동으로 닫고 pending 제거
+  setTimeout(async () => {
+
+    document.getElementById("modalBackdrop").style.display = "none";
+
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(gameRef);
+      const d = snap.data() || {};
+      if (d.pending && d.pending.type === "rent") {
+        tx.set(gameRef, { pending: null }, { merge: true });
+      }
+    });
+
+  }, 1200);
+
+} else {
+  closeBuyModal();
+}
 }
       });     
     }
