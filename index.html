@@ -591,6 +591,26 @@ tx.set(gameRef, {
       };
 
 await claimSeat();
+
+      setInterval(async () => {
+  try {
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(gameRef);
+      const data = snap.data() || {};
+      const now = Date.now();
+
+      if (data.player1Id === clientId) {
+        tx.set(gameRef, { p1LastSeen: now }, { merge: true });
+      }
+
+      if (data.player2Id === clientId) {
+        tx.set(gameRef, { p2LastSeen: now }, { merge: true });
+      }
+    });
+  } catch (e) {
+    // 네트워크 오류 무시
+  }
+}, 5000);
       
       onSnapshot(gameRef, async (snap) => {
         const data = snap.data() || {};
