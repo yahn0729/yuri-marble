@@ -593,6 +593,8 @@ tx.set(gameRef, {
 await claimSeat();
 
       setInterval(async () => {
+        console.log("heartbeat tick", new Date().toLocaleTimeString(), "clientId:", clientId);
+        
   try {
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(gameRef);
