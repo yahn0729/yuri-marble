@@ -161,6 +161,7 @@
 }
 #buyBtn{ background:#ff5aa5; color:#fff; }
 #passBtn{ background:#f2f2f2; }
+#closeBtn{ background:#f2f2f2; }    
 #toast{
   position: fixed;
   left: 50%;
@@ -424,6 +425,18 @@ window.confirmBuy = async function(){
 
 window.passBuy = async function(){
   await resolvePending("pass");
+};
+      
+window.closeInfo = async function(){
+  closeBuyModal();
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(gameRef);
+    const d = snap.data() || {};
+    if (d.pending && d.pending.type === "rent") {
+      tx.set(gameRef, { pending: null }, { merge: true });
+    }
+  });
 };
 
 async function resolvePending(action){
@@ -767,7 +780,9 @@ document.getElementById("moneyDisplay").innerHTML =
   `Player 1: <b>${money1}</b> 💰 &nbsp;&nbsp; | &nbsp;&nbsp; Player 2: <b>${money2}</b> 💰`;
 
         // ✅ pending 모달: 같은 pending은 한 번만 처리
-const pendingKey = pending ? `${pending.type}:${pending.tile}:${pending.player}` : null;
+const pendingKey = pending
+  ? `${pending.type}:${pending.tile}:${pending.player}:${pending.owner ?? ""}:${pending.rent ?? ""}`
+  : null;
 
 if (!pendingKey) {
   lastPendingKey = null;   // pending 없어지면 리셋
@@ -798,23 +813,12 @@ if (!pendingKey) {
   // 기존 모달 재사용
   document.getElementById("modalTitle").textContent = "통행료";
   document.getElementById("modalDesc").innerHTML = message;
-  document.querySelector("#modal .actions").style.display = "none";
+   
+document.querySelector("#modal .actions").style.display = "flex";
+document.getElementById("closeBtn").style.display = "inline-block";
+document.getElementById("passBtn").style.display = "none";
+document.getElementById("buyBtn").style.display = "none";
   document.getElementById("modalBackdrop").style.display = "flex";
-
-  // 🔥 1초 후 자동으로 닫고 pending 제거
-  setTimeout(async () => {
-
-    document.getElementById("modalBackdrop").style.display = "none";
-
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(gameRef);
-      const d = snap.data() || {};
-      if (d.pending && d.pending.type === "rent") {
-        tx.set(gameRef, { pending: null }, { merge: true });
-      }
-    });
-
-  }, 1200);
 
 } else {
   closeBuyModal();
@@ -856,6 +860,7 @@ if (!pendingKey) {
     <h3 id="modalTitle">땅 구매</h3>
     <p class="sub" id="modalDesc">-</p>
     <div class="actions">
+      <button id="closeBtn" onclick="closeInfo()">닫기</button>
       <button id="passBtn" onclick="passBuy()">패스</button>
       <button id="buyBtn" onclick="confirmBuy()">구매</button>
     </div>
