@@ -381,7 +381,21 @@ function showToast(msg){
   clearTimeout(window.__toastT);
   window.__toastT = setTimeout(() => (el.style.display="none"), 1400);
 }
+      
+function applyOwnedColors(){
+  layout.forEach((num) => {
+    if (num === null) return;
+    const cell = document.getElementById(`tile-${num}`);
+    if (!cell) return;
 
+    const owner = owned?.[String(num)] ?? null;
+    cell.classList.remove("owner1", "owner2");
+
+    if (owner === 1) cell.classList.add("owner1");
+    if (owner === 2) cell.classList.add("owner2");
+  });
+}
+      
 function openBuyModal(tileNum){
   const t = tiles[tileNum];
   const price = t?.price ?? 0;
@@ -627,6 +641,7 @@ myPlayer = (p1 === clientId) ? 1 : (p2 === clientId) ? 2 : null;
         money1 = data.money1 ?? 200;
         money2 = data.money2 ?? 200;
         owned = data.owned || {};
+        applyOwnedColors();
 pending = data.pending || null;
 
         const newP1 = data.position1 ?? 0;
