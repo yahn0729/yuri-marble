@@ -572,8 +572,20 @@ async function resolvePending(action){
 
           const pos1 = data.position1 ?? 0;
           const pos2 = data.position2 ?? 0;
-          const myPos = (myPlayer === 1) ? pos1 : pos2;
-          const next = (myPos + dice) % 16;
+          
+let m1 = data.money1 ?? 200;   // 💰 여기 추가
+let m2 = data.money2 ?? 200;   // 💰 여기 추가
+          
+const myPos = (myPlayer === 1) ? pos1 : pos2;
+
+const nextRaw = myPos + dice;     // 이동 전 계산
+const passedStart = nextRaw >= 16; // 🚩 출발점 통과 여부
+const next = nextRaw % 16;        // 실제 도착 칸
+
+  if (passedStart) {
+  if (myPlayer === 1) m1 += 20;
+  else m2 += 20;
+}
 
 const ownedNow = data.owned || {};
 const t = tiles[next];
@@ -596,26 +608,30 @@ if (isProp && !owner) {
 
   // ✅ 돈 부족이면 팝업 없이 턴 넘김
   if (myMoney < price) {
-    tx.set(gameRef, {
-      ...movePatch,
-      owned: ownedNow,
-      pending: null,
-      turn: (myPlayer === 1 ? 2 : 1)
-    }, { merge: true });
+tx.set(gameRef, {
+  ...movePatch,
+  owned: ownedNow,
+  money1: m1,
+  money2: m2,
+  pending: null,
+  turn: (myPlayer === 1 ? 2 : 1)
+}, { merge: true });
     return;
   }
 
   // ✅ 돈 충분하면 구매 팝업(pending)
-  tx.set(gameRef, {
-    ...movePatch,
-    owned: ownedNow,
-    pending: {
-      type: "buy",
-      tile: next,
-      player: myPlayer,
-      price
-    }
-  }, { merge: true });
+tx.set(gameRef, {
+  ...movePatch,
+  owned: ownedNow,
+  money1: m1,
+  money2: m2,
+  pending: {
+    type: "buy",
+    tile: next,
+    player: myPlayer,
+    price
+  }
+}, { merge: true });
   return;
 }
 
@@ -623,6 +639,8 @@ if (isProp && !owner) {
 tx.set(gameRef, {
   ...movePatch,
   owned: ownedNow,
+  money1: m1,
+  money2: m2,
   turn: (myPlayer === 1 ? 2 : 1)
 }, { merge: true });
         });
