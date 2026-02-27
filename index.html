@@ -580,8 +580,29 @@ const owner = ownedNow[String(next)] ?? null;
 // 1) 이동은 항상 반영
 const movePatch = (myPlayer === 1) ? { position1: next } : { position2: next };
 
-// 2) 무소유 땅이면: pending 생성(턴은 아직 안 넘김)
+// 2) 무소유 땅이면:
+//    - 돈 충분: pending 생성(구매팝업 뜸)
+//    - 돈 부족: pending 없이 그냥 턴 넘김(팝업 안 뜸)
 if (isProp && !owner) {
+  const price = t.price ?? 0;
+
+  // 현재 내 돈
+  const m1 = data.money1 ?? 200;
+  const m2 = data.money2 ?? 200;
+  const myMoney = (myPlayer === 1) ? m1 : m2;
+
+  // ✅ 돈 부족이면 팝업 없이 턴 넘김
+  if (myMoney < price) {
+    tx.set(gameRef, {
+      ...movePatch,
+      owned: ownedNow,
+      pending: null,
+      turn: (myPlayer === 1 ? 2 : 1)
+    }, { merge: true });
+    return;
+  }
+
+  // ✅ 돈 충분하면 구매 팝업(pending)
   tx.set(gameRef, {
     ...movePatch,
     owned: ownedNow,
@@ -589,7 +610,7 @@ if (isProp && !owner) {
       type: "buy",
       tile: next,
       player: myPlayer,
-      price: t.price ?? 0
+      price
     }
   }, { merge: true });
   return;
