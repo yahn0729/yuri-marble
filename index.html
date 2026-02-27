@@ -365,6 +365,8 @@ cell.innerHTML = `
     money2: 30,
     owned: {},
     pending: null
+        gameOver: false,
+    winner: null
   }, { merge: true });
 };
       
@@ -707,6 +709,14 @@ await claimSeat();
       
       onSnapshot(gameRef, async (snap) => {
         const data = snap.data() || {};
+
+          if (data.gameOver) {
+    const winner = data.winner;
+    alert(`💥 게임 종료! Player ${winner} 승리!`);
+    document.getElementById("rollBtn").disabled = true;
+    closeBuyModal(); // 열려있으면 닫기
+    return; // ✅ 아래 로직(턴/이동/모달) 실행 안 하게 끊기
+  }
         
         const p1 = data.player1Id ?? null;
 const p2 = data.player2Id ?? null;
@@ -736,7 +746,7 @@ pending = data.pending || null;
         latestTurn = turn;
 
         const btn = document.getElementById("rollBtn");
-btn.disabled = (!myPlayer || latestTurn !== myPlayer || animating || !!pending);
+btn.disabled = (!myPlayer || latestTurn !== myPlayer || animating || !!pending || !!data.gameOver);
 
         document.getElementById("playerLabel").textContent =
           myPlayer
