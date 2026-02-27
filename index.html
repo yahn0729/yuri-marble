@@ -256,6 +256,17 @@
 
       let owned = {};
       let pending = null;
+
+const ROOM_ID = "room1";
+const CLIENT_ID_KEY = `yuriMarble:${ROOM_ID}:clientId`;
+
+const clientId = localStorage.getItem(CLIENT_ID_KEY) || (() => {
+  const id = (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+  localStorage.setItem(CLIENT_ID_KEY, id);
+  return id;
+})();
+
+const SEAT_TIMEOUT_MS = 15000;    
     
     async function main() {
       const app = initializeApp(firebaseConfig);
