@@ -278,13 +278,18 @@ layout.forEach((num) => {
     cell.id = `tile-${num}`;
     if ([0, 4, 8, 12].includes(num)) cell.classList.add("corner");
 
-    const t = tiles[num];
+const t = tiles[num];
 
-    // ✅ 여기 반드시 백틱(`)으로!
-    cell.innerHTML = `
-      <div class="tileName">${t?.name ?? num}</div>
-      <div class="tileAmt">${t?.amount ?? ""}</div>
-    `;
+// ✅ prop(땅)이면 price 표시, 아니면 amount 표시
+const amtText =
+  (t?.type === "prop")
+    ? `${t.price}`
+    : (t?.amount ?? "");
+
+cell.innerHTML = `
+  <div class="tileName">${t?.name ?? num}</div>
+  <div class="tileAmt">${amtText}</div>
+`;
 
     // ✅ 소유 색 적용
     const owner = owned?.[String(num)] ?? null;
