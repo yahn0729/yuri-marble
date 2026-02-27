@@ -256,6 +256,7 @@
 
       let owned = {};
       let pending = null;
+    
 
 const ROOM_ID = "room1";
 const CLIENT_ID_KEY = `yuriMarble:${ROOM_ID}:clientId`;
@@ -373,6 +374,8 @@ cell.innerHTML = `
       let latestTurn = 1;
       let money1 = 200;
       let money2 = 200;
+      let lastPendingKey = null;
+      let lastOwnedToastKey = null;
       
 function showToast(msg){
   const el = document.getElementById("toast");
@@ -690,25 +693,43 @@ btn.disabled = (!myPlayer || latestTurn !== myPlayer || animating || !!pending);
 document.getElementById("moneyDisplay").innerHTML =
   `Player 1: <b>${money1}</b> 💰 &nbsp;&nbsp; | &nbsp;&nbsp; Player 2: <b>${money2}</b> 💰`;
 
-        if (pending && pending.type === "buy") {
-  if (myPlayer && pending.player === myPlayer) {
+        // ✅ pending 모달: 같은 pending은 한 번만 처리
+const pendingKey = pending ? `${pending.type}:${pending.tile}:${pending.player}` : null;
+
+if (!pendingKey) {
+  lastPendingKey = null;   // pending 없어지면 리셋
+  closeBuyModal();
+} else if (pendingKey !== lastPendingKey) {
+  lastPendingKey = pendingKey;
+
+  if (pending.type === "buy" && myPlayer && pending.player === myPlayer) {
     openBuyModal(pending.tile);
   } else {
     closeBuyModal();
   }
-} else {
-  closeBuyModal();
 }
-  if (!pending && myPlayer) {
+if (!pending && myPlayer) {
   const myPosNow = (myPlayer === 1) ? (data.position1 ?? 0) : (data.position2 ?? 0);
   const t = tiles[myPosNow];
+
   if (t?.type === "prop") {
     const ownerNow = owned[String(myPosNow)] ?? null;
+
+    // ✅ 상대 땅이면: 해당 칸에서는 1번만 토스트
     if (ownerNow && ownerNow !== myPlayer) {
-      showToast("이미 누군가 소유한 땅이라 구매할 수 없어요!");
+      const k = `ownedToast:${myPlayer}:${myPosNow}`;
+      if (lastOwnedToastKey !== k) {
+        lastOwnedToastKey = k;
+        showToast("이미 누군가 소유한 땅이라 구매할 수 없어요!");
+      }
+    } else {
+      // 내 땅/무소유면 리셋
+      lastOwnedToastKey = null;
     }
+  } else {
+    lastOwnedToastKey = null;
   }
-}      
+}     
       });     
     }
 
