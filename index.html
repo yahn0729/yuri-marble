@@ -514,6 +514,29 @@ async function resolvePending(action){
 
     const ownedNow = data.owned || {};
 
+    if (p.type === "key") {
+  const card = p.card || {};
+  let m1 = data.money1 ?? 200;
+  let m2 = data.money2 ?? 200;
+
+  const meIsP1 = (myPlayer === 1);
+
+  // 💰 money 카드만 먼저
+  if (card.kind === "money") {
+    if (meIsP1) m1 += (card.amount ?? 0);
+    else m2 += (card.amount ?? 0);
+  }
+
+  tx.set(gameRef, {
+    money1: m1,
+    money2: m2,
+    pending: null,
+    turn: (myPlayer === 1 ? 2 : 1)
+  }, { merge: true });
+
+  return;
+}
+
     // ✅ 1) BUILD 처리 (buy랑 완전히 분리!)
     if (p.type === "build") {
       const buildingsNow = data.buildings || {};
