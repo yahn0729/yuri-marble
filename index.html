@@ -738,23 +738,28 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
         animating = false;
       }
 
-      // 초기값: position만 기본 보장
-      await setDoc(gameRef, { position1: 0, position2: 0 }, { merge: true });
+// position/turn/money/fund/jail 등 "없을 때만" 초기값 세팅 (새로고침 리셋 방지)
+await runTransaction(db, async (tx) => {
+  const snap = await tx.get(gameRef);
+  const data = snap.data() || {};
+  const patch = {};
 
-      // turn/money가 없을 때만 초기 세팅
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(gameRef);
-        const data = snap.data() || {};
-        owned = data.owned || {};
-        const patch = {};
-        if (data.turn == null) patch.turn = 1;
-        if (data.money1 == null) patch.money1 = 200;
-        if (data.money2 == null) patch.money2 = 200;
-        if (data.fund == null) patch.fund = 0;
-        if (data.jail1 == null) patch.jail1 = 0;
-        if (data.jail2 == null) patch.jail2 = 0;
-        if (Object.keys(patch).length) tx.set(gameRef, patch, { merge: true });
-      });
+  if (data.position1 == null) patch.position1 = 0;
+  if (data.position2 == null) patch.position2 = 0;
+
+  if (data.turn == null) patch.turn = 1;
+  if (data.money1 == null) patch.money1 = 200;
+  if (data.money2 == null) patch.money2 = 200;
+
+  if (data.fund == null) patch.fund = 0;
+  if (data.jail1 == null) patch.jail1 = 0;
+  if (data.jail2 == null) patch.jail2 = 0;
+
+  if (data.owned == null) patch.owned = {};
+  if (data.buildings == null) patch.buildings = {};
+
+  if (Object.keys(patch).length) tx.set(gameRef, patch, { merge: true });
+});
 
       // 자동 좌석 배정
       const uid = auth.currentUser.uid;
