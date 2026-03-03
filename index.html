@@ -76,6 +76,16 @@
     .token.p1{ left: 8px; }
     .token.p2{ right: 8px; }
 
+    .building{
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 16px;
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.12));
+}
+
     .controls{ margin-top: 18px; }
     .controls button{
       padding: 10px 16px;
@@ -403,6 +413,26 @@ function applyOwnedColors(){
     if (owner === 2) cell.classList.add("owner2");
   });
 }
+
+ function applyBuildingMarkers(){
+  layout.forEach((num) => {
+    if (num === null) return;
+    const cell = document.getElementById(`tile-${num}`);
+    if (!cell) return;
+
+    // 기존 건물 아이콘 제거 (중복 방지)
+    cell.querySelectorAll(".building").forEach(el => el.remove());
+
+    // buildings 맵에 있으면 아이콘 추가
+    const hasBuilding = !!buildings?.[String(num)];
+    if (hasBuilding) {
+      const b = document.createElement("div");
+      b.className = "building";
+      b.textContent = "🏠";
+      cell.appendChild(b);
+    }
+  });
+}     
       
 function openBuyModal(tileNum){
   const t = tiles[tileNum];
@@ -839,6 +869,7 @@ myPlayer = (p1 === clientId) ? 1 : (p2 === clientId) ? 2 : null;
         owned = data.owned || {};
         buildings = data.buildings || {};
         applyOwnedColors();
+        applyBuildingMarkers();
 pending = data.pending || null;
 
         const sharedDice = data.dice ?? null;
