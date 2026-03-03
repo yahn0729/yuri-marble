@@ -514,8 +514,31 @@ async function resolvePending(action){
     const p = data.pending || null;
     if (!p) return;
 
-    if (p.type !== "buy" && p.type !== "build" && p.type !== "key") return;
+if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fund") return;
     if (p.player !== myPlayer) return;
+
+  if (p.type === "fund") {
+  let m1 = data.money1 ?? 200;
+  let m2 = data.money2 ?? 200;
+  let fundNow = data.fund ?? 0;
+
+  const take = fundNow;  // 모인 돈 전부 수령
+
+  if (myPlayer === 1) m1 += take;
+  else m2 += take;
+
+  fundNow = 0;
+
+  tx.set(gameRef, {
+    money1: m1,
+    money2: m2,
+    fund: fundNow,
+    pending: null,
+    turn: (myPlayer === 1 ? 2 : 1)
+  }, { merge: true });
+
+  return;
+}  
 
     if (p.type === "key") {
   const card = p.card || {};
@@ -779,6 +802,46 @@ if (next === 14) {
 
   return;
 }        
+
+  // 1.6) 8번(사회복지기금 수령): pending 띄우기
+if (next === 8) {
+  const fundNow = data.fund ?? 0;
+
+  // 모인 돈이 없으면 그냥 턴 넘김(선택: 모달 안 띄움)
+  if (fundNow <= 0) {
+    tx.set(gameRef, {
+      ...movePatch,
+      owned: ownedNow,
+      buildings: data.buildings || {},
+      money1: m1,
+      money2: m2,
+      fund: fundNow,
+      dice,
+      pending: null,
+      turn: (myPlayer === 1 ? 2 : 1)
+    }, { merge: true });
+    return;
+  }
+
+  // 모인 돈이 있으면 "수령" 모달 띄우기
+  tx.set(gameRef, {
+    ...movePatch,
+    owned: ownedNow,
+    buildings: data.buildings || {},
+    money1: m1,
+    money2: m2,
+    fund: fundNow,
+    dice,
+    pending: {
+      type: "fund",
+      player: myPlayer,
+      amount: fundNow
+    }
+    // ⚠️ 여기서 turn 넘기지 말기 (확인 눌러서 resolvePending에서 처리)
+  }, { merge: true });
+
+  return;
+}    
 
   // 2) 무소유 땅: 돈 충분이면 pending / 부족이면 턴 넘김
   if (isProp && !owner) {
@@ -1050,6 +1113,22 @@ if (!pendingKey) {
 
   document.getElementById("modalTitle").textContent = "황금열쇠 🔑";
   document.getElementById("modalDesc").innerHTML = cardText;
+
+  // ✅ 확인 버튼 하나만
+  document.querySelector("#modal .actions").style.display = "flex";
+  document.getElementById("closeBtn").style.display = "none";
+  document.getElementById("passBtn").style.display = "none";
+  document.getElementById("buyBtn").style.display = "inline-block";
+  document.getElementById("buyBtn").textContent = "확인";
+
+  document.getElementById("modalBackdrop").style.display = "flex";
+
+} else if (pending.type === "fund" && myPlayer && pending.player === myPlayer) {
+  const amt = pending.amount ?? 0;
+
+  document.getElementById("modalTitle").textContent = "사회복지기금 💛";
+  document.getElementById("modalDesc").innerHTML =
+    `모인 금액 수령<br/><b>+${amt}</b> 💰`;
 
   // ✅ 확인 버튼 하나만
   document.querySelector("#modal .actions").style.display = "flex";
