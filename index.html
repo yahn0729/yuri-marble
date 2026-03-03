@@ -239,6 +239,27 @@
   15: { type:"prop",   name: "서울 🏙", price: 80, rent: 18 }
 };
 
+    const keyCards = [
+  // 💰 money (6장)
+  { id:"K01", text:"🎁 용돈 받기! +20 💰", kind:"money", amount:+20 },
+  { id:"K02", text:"💼 성과급 지급! +30 💰", kind:"money", amount:+30 },
+  { id:"K03", text:"🎉 이벤트 당첨! +40 💰", kind:"money", amount:+40 },
+  { id:"K04", text:"💸 벌금 부과! -15 💰", kind:"money", amount:-15 },
+  { id:"K05", text:"🧾 세금 납부! -25 💰", kind:"money", amount:-25 },
+  { id:"K06", text:"😱 병원비 지출! -30 💰", kind:"money", amount:-30 },
+
+  // 🚀 특정 이동 (4장)
+  { id:"K07", text:"🚀 우주여행으로 이동!", kind:"goto", tile:12 },
+  { id:"K08", text:"🏝 무인도로 이동!", kind:"goto", tile:4 },
+  { id:"K09", text:"🏙 서울로 이동!", kind:"goto", tile:15 },
+  { id:"K10", text:"🏁 출발로 이동! (+20 포함)", kind:"gotoStart" },
+
+  // ➡️ 위치 이동 (3장)
+  { id:"K13", text:"➡️ 3칸 전진!", kind:"forward", step:3 },
+  { id:"K14", text:"➡️ 5칸 전진!", kind:"forward", step:5 },
+  { id:"K15", text:"⬅️ 2칸 후진!", kind:"backward", step:2 }
+];
+    
     const layout = [
       8,  9, 10, 11, 12,
       7, null, null, null, 13,
@@ -776,6 +797,30 @@ const rent = hasBuilding ? baseRent * 3 : baseRent;
 
   return;
 }
+
+          // 2.7) 황금열쇠: 카드 뽑기 pending
+if (t?.type === "key") {
+  const card = keyCards[Math.floor(Math.random() * keyCards.length)];
+
+  tx.set(gameRef, {
+    ...movePatch,
+    owned: ownedNow,
+    buildings: data.buildings || {},
+    money1: m1,
+    money2: m2,
+    dice,
+    pending: {
+      type: "key",
+      player: myPlayer,
+      card
+    }
+    // ⚠️ 여기서 turn 넘기지 말기!
+    // 확인 버튼 눌러서(resolvePending) 카드 효과 적용 + 재판정까지 끝난 뒤 turn 넘길 거야.
+  }, { merge: true });
+
+  return;
+}
+          
 
   // 2.8) 내 소유 땅 + 건물 없음: 건설 팝업(pending=build)
 if (isProp && owner === myPlayer) {
