@@ -575,15 +575,17 @@ async function resolvePending(action){
         await sleep(650);
         diceEl.classList.remove("shake");
 
-        const dice = Math.floor(Math.random() * 6) + 1;
-        document.getElementById("diceResult").innerText = dice;
-        diceEl.textContent = dice;
+// const dice = Math.floor(Math.random() * 6) + 1;
+// document.getElementById("diceResult").innerText = dice;
+// diceEl.textContent = dice;
 
         await runTransaction(db, async (tx) => {
   const snap = await tx.get(gameRef);
   const data = snap.data() || {};
   const turn = data.turn ?? 1;
   if (turn !== myPlayer) return;
+
+          const dice = Math.floor(Math.random() * 6) + 1;
 
   const ownedNow = data.owned || {};
 
@@ -623,6 +625,7 @@ async function resolvePending(action){
         owned: ownedNow,
         money1: m1,
         money2: m2,
+          dice,
         pending: null,
         turn: (myPlayer === 1 ? 2 : 1)
       }, { merge: true });
@@ -634,6 +637,7 @@ async function resolvePending(action){
       owned: ownedNow,
       money1: m1,
       money2: m2,
+        dice,
       pending: {
         type: "buy",
         tile: next,
@@ -668,6 +672,7 @@ if (isProp && owner && owner !== myPlayer) {
       owned: ownedNow,
       money1: m1,
       money2: m2,
+        dice,
       pending: null,
       gameOver: true,
       winner: owner
@@ -681,6 +686,7 @@ if (isProp && owner && owner !== myPlayer) {
     owned: ownedNow,
     money1: m1,
     money2: m2,
+      dice,
     pending: {
       type: "rent",
       tile: next,
@@ -700,6 +706,7 @@ if (isProp && owner && owner !== myPlayer) {
     owned: ownedNow,
     money1: m1,
     money2: m2,
+      dice,
     pending: null,
     turn: (myPlayer === 1 ? 2 : 1)
   }, { merge: true });
@@ -753,6 +760,12 @@ myPlayer = (p1 === clientId) ? 1 : (p2 === clientId) ? 2 : null;
         owned = data.owned || {};
         applyOwnedColors();
 pending = data.pending || null;
+
+        const sharedDice = data.dice ?? null;
+if (sharedDice != null) {
+  document.getElementById("diceResult").innerText = sharedDice;
+  document.getElementById("dice").textContent = sharedDice;
+}
 
         const newP1 = data.position1 ?? 0;
         const newP2 = data.position2 ?? 0;
