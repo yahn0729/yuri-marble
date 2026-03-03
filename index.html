@@ -941,6 +941,14 @@ if (!pendingKey) {
 
   let message = "";
 
+if (pending.hasBuilding) {
+  const base = rent / 3;
+
+  message = `헉! 건물 완공된 지역 😱<br/>
+  기본 ${base} × 3 = ${rent} 💣`;
+
+} else {
+
   if (myPlayer === payer) {
     message = `💸 통행료 ${rent} 💰를 지불했습니다.`;
   } else if (myPlayer === owner) {
@@ -948,6 +956,8 @@ if (!pendingKey) {
   } else {
     message = `📣 Player ${payer} → Player ${owner}<br/>통행료 ${rent} 💰`;
   }
+
+}
 
   // 기존 모달 재사용
   document.getElementById("modalTitle").textContent = "통행료";
