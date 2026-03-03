@@ -502,7 +502,7 @@ async function resolvePending(action){
     const p = data.pending || null;
     if (!p) return;
 
-    if (p.type !== "buy" && p.type !== "build") return;
+    if (p.type !== "buy" && p.type !== "build" && p.type !== "key") return;
     if (p.player !== myPlayer) return;
 
     const tile = p.tile;
@@ -974,6 +974,21 @@ if (!pendingKey) {
   document.getElementById("passBtn").style.display = "inline-block";
   document.getElementById("buyBtn").style.display = "inline-block";
   document.getElementById("buyBtn").textContent = "건설";
+
+  document.getElementById("modalBackdrop").style.display = "flex";
+
+   } else if (pending.type === "key" && myPlayer && pending.player === myPlayer) {
+  const cardText = pending.card?.text ?? "황금열쇠!";
+
+  document.getElementById("modalTitle").textContent = "황금열쇠 🔑";
+  document.getElementById("modalDesc").innerHTML = cardText;
+
+  // ✅ 확인 버튼 하나만
+  document.querySelector("#modal .actions").style.display = "flex";
+  document.getElementById("closeBtn").style.display = "none";
+  document.getElementById("passBtn").style.display = "none";
+  document.getElementById("buyBtn").style.display = "inline-block";
+  document.getElementById("buyBtn").textContent = "확인";
 
   document.getElementById("modalBackdrop").style.display = "flex";
 
