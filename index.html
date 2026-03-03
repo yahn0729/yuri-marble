@@ -730,6 +730,38 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
         if (!myPlayer) return;
         if (animating) return;
 
+          // 🏝 무인도(정지) 체크
+  const blocked = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(gameRef);
+    const data = snap.data() || {};
+    const turn = data.turn ?? 1;
+
+    if (turn !== myPlayer) return false;
+
+    const j1 = data.jail1 ?? 0;
+    const j2 = data.jail2 ?? 0;
+    const myJail = (myPlayer === 1) ? j1 : j2;
+
+    if (myJail > 0) {
+      const patch = (myPlayer === 1)
+        ? { jail1: myJail - 1 }
+        : { jail2: myJail - 1 };
+
+      tx.set(gameRef, {
+        ...patch,
+        pending: null,
+        turn: (myPlayer === 1 ? 2 : 1)
+      }, { merge: true });
+
+      return true;
+    }
+
+    return false;
+  });
+
+  // 무인도였다면 주사위 굴리지 않음
+  if (blocked) return;
+
         // 주사위 흔들림
         const diceEl = document.getElementById("dice");
         diceEl.classList.add("shake");
