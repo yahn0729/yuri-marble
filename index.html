@@ -730,7 +730,10 @@ async function resolvePending(action){
 
 // 2.5) 상대 소유 땅: 통행료 + 게임오버
 if (isProp && owner && owner !== myPlayer) {
-  const rent = t.rent ?? 0;
+  const buildingsNow = data.buildings || {};
+const hasBuilding = !!buildingsNow[String(next)];
+const baseRent = t.rent ?? 0;
+const rent = hasBuilding ? baseRent * 3 : baseRent;
 
   if (myPlayer === 1) {
     m1 -= rent;
@@ -767,13 +770,7 @@ if (isProp && owner && owner !== myPlayer) {
     money1: m1,
     money2: m2,
       dice,
-    pending: {
-      type: "rent",
-      tile: next,
-      player: myPlayer, // 돈 낸 사람
-      owner,            // 돈 받은 사람
-      rent
-    },
+   pending: { type:"rent", tile: next, player: myPlayer, owner, rent, hasBuilding },
     turn: (myPlayer === 1 ? 2 : 1)
   }, { merge: true });
 
