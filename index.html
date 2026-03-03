@@ -88,6 +88,26 @@
   box-shadow: 0 0 6px rgba(255,90,165,0.6);
 }
 
+    .jailBadge{
+  position:absolute;
+  top:6px;
+  left:6px;
+  display:flex;
+  gap:6px;
+  font-size:12px;
+  font-weight:900;
+  pointer-events:none;
+}
+.jailPill{
+  padding:2px 6px;
+  border-radius:999px;
+  background: rgba(255,255,255,0.85);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+}
+.jailPill.p1{ border:2px solid rgba(255,90,165,0.7); }
+.jailPill.p2{ border:2px solid rgba(77,184,255,0.7); }
+    
+
     .controls{ margin-top: 18px; }
     .controls button{
       padding: 10px 16px;
@@ -292,6 +312,8 @@
       let pending = null;
     let buildings = {};
     let fund = 0;
+    let jail1 = 0;
+let jail2 = 0;
     
 
 const ROOM_ID = "room1";
@@ -459,6 +481,38 @@ function applyOwnedColors(){
     }
   });
 }
+
+ function applyJailBadge(){
+  const cell = document.getElementById("tile-4"); // 무인도 칸
+  if (!cell) return;
+
+  // 기존 배지 제거(중복 방지)
+  cell.querySelectorAll(".jailBadge").forEach(el => el.remove());
+
+  // 둘 다 0이면 아무것도 안 보여줌(깔끔)
+  if ((jail1 ?? 0) <= 0 && (jail2 ?? 0) <= 0) return;
+
+  const wrap = document.createElement("div");
+  wrap.className = "jailBadge";
+
+  // P1
+  if ((jail1 ?? 0) > 0) {
+    const a = document.createElement("div");
+    a.className = "jailPill p1";
+    a.textContent = `P1 ${jail1}`;
+    wrap.appendChild(a);
+  }
+
+  // P2
+  if ((jail2 ?? 0) > 0) {
+    const b = document.createElement("div");
+    b.className = "jailPill p2";
+    b.textContent = `P2 ${jail2}`;
+    wrap.appendChild(b);
+  }
+
+  cell.appendChild(wrap);
+}     
 
   function applyFundLabel(){
   const cell = document.getElementById("tile-8");
@@ -1098,9 +1152,12 @@ myPlayer = (p1 === clientId) ? 1 : (p2 === clientId) ? 2 : null;
         owned = data.owned || {};
         buildings = data.buildings || {};
         fund = data.fund ?? 0;
+        jail1 = data.jail1 ?? 0;
+        jail2 = data.jail2 ?? 0;
         applyOwnedColors();
         applyBuildingMarkers();
         applyFundLabel();
+        applyJailBadge();
 pending = data.pending || null;
 
         const sharedDice = data.dice ?? null;
