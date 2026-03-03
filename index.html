@@ -402,6 +402,8 @@ cell.innerHTML = `
     owned: {},
     buildings: {},
     fund: 0, 
+   jail1: 0,
+  jail2: 0, 
     pending: null,
     gameOver: false,
     winner: null
@@ -695,6 +697,8 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
         if (data.money1 == null) patch.money1 = 200;
         if (data.money2 == null) patch.money2 = 200;
         if (data.fund == null) patch.fund = 0;
+        if (data.jail1 == null) patch.jail1 = 0;
+        if (data.jail2 == null) patch.jail2 = 0;
         if (Object.keys(patch).length) tx.set(gameRef, patch, { merge: true });
       });
 
@@ -773,6 +777,7 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
   // 1) 이동은 항상 반영
   const movePatch = (myPlayer === 1) ? { position1: next } : { position2: next };
 
+
   // 1.5) 14번(기금 납부): 돈 내고 fund에 적립
 if (next === 14) {
   const fee = 10; // 👈 납부 금액
@@ -842,6 +847,26 @@ if (next === 8) {
 
   return;
 }    
+          
+          // 1.7) 무인도(4번): 2턴 정지
+if (next === 4) {
+  const patchJail = (myPlayer === 1) ? { jail1: 2 } : { jail2: 2 };
+
+  tx.set(gameRef, {
+    ...movePatch,
+    ...patchJail,
+    owned: ownedNow,
+    buildings: data.buildings || {},
+    fund: data.fund ?? 0,
+    money1: m1,
+    money2: m2,
+    dice,
+    pending: null,
+    turn: (myPlayer === 1 ? 2 : 1)
+  }, { merge: true });
+
+  return;
+}
 
   // 2) 무소유 땅: 돈 충분이면 pending / 부족이면 턴 넘김
   if (isProp && !owner) {
