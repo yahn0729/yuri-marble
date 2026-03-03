@@ -505,15 +505,6 @@ async function resolvePending(action){
     if (p.type !== "buy" && p.type !== "build" && p.type !== "key") return;
     if (p.player !== myPlayer) return;
 
-    const tile = p.tile;
-    const t = tiles[tile];
-    if (t?.type !== "prop") {
-      tx.set(gameRef, { pending: null }, { merge: true });
-      return;
-    }
-
-    const ownedNow = data.owned || {};
-
     if (p.type === "key") {
   const card = p.card || {};
   let m1 = data.money1 ?? 200;
@@ -521,7 +512,6 @@ async function resolvePending(action){
 
   const meIsP1 = (myPlayer === 1);
 
-  // 💰 money 카드만 먼저
   if (card.kind === "money") {
     if (meIsP1) m1 += (card.amount ?? 0);
     else m2 += (card.amount ?? 0);
@@ -536,6 +526,15 @@ async function resolvePending(action){
 
   return;
 }
+
+    const tile = p.tile;
+    const t = tiles[tile];
+    if (t?.type !== "prop") {
+      tx.set(gameRef, { pending: null }, { merge: true });
+      return;
+    }
+
+    const ownedNow = data.owned || {};
 
     // ✅ 1) BUILD 처리 (buy랑 완전히 분리!)
     if (p.type === "build") {
@@ -835,6 +834,7 @@ if (t?.type === "key") {
     pending: {
       type: "key",
       player: myPlayer,
+      tile: next,
       card
     }
     // ⚠️ 여기서 turn 넘기지 말기!
