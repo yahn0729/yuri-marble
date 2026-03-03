@@ -291,6 +291,7 @@
       let owned = {};
       let pending = null;
     let buildings = {};
+    let fund = 0;
     
 
 const ROOM_ID = "room1";
@@ -400,6 +401,7 @@ cell.innerHTML = `
     money2: 200,
     owned: {},
     buildings: {},
+    fund: 0, 
     pending: null,
     gameOver: false,
     winner: null
@@ -454,7 +456,17 @@ function applyOwnedColors(){
       cell.appendChild(b);
     }
   });
-}     
+}
+
+  function applyFundLabel(){
+  const cell = document.getElementById("tile-8");
+  if (!cell) return;
+
+  const amtEl = cell.querySelector(".tileAmt");
+  if (!amtEl) return;
+
+  amtEl.innerHTML = `모인 금액 수령<br/><b>+${fund}</b> 💰`;
+}    
       
 function openBuyModal(tileNum){
   const t = tiles[tileNum];
@@ -659,6 +671,7 @@ async function resolvePending(action){
         if (data.turn == null) patch.turn = 1;
         if (data.money1 == null) patch.money1 = 200;
         if (data.money2 == null) patch.money2 = 200;
+        if (data.fund == null) patch.fund = 0;
         if (Object.keys(patch).length) tx.set(gameRef, patch, { merge: true });
       });
 
@@ -736,6 +749,36 @@ async function resolvePending(action){
 
   // 1) 이동은 항상 반영
   const movePatch = (myPlayer === 1) ? { position1: next } : { position2: next };
+
+  // 1.5) 14번(기금 납부): 돈 내고 fund에 적립
+if (next === 14) {
+  const fee = 20; // 👈 납부 금액 (원하면 바꿔도 됨)
+
+  let fundNow = data.fund ?? 0;
+
+  if (myPlayer === 1) m1 -= fee;
+  else m2 -= fee;
+
+  fundNow += fee;
+
+  // (선택) 0 밑으로 내려가면 0으로만 보정
+  if (m1 < 0) m1 = 0;
+  if (m2 < 0) m2 = 0;
+
+  tx.set(gameRef, {
+    ...movePatch,
+    owned: ownedNow,
+    buildings: data.buildings || {},
+    money1: m1,
+    money2: m2,
+    fund: fundNow,
+    dice,
+    pending: null,
+    turn: (myPlayer === 1 ? 2 : 1)
+  }, { merge: true });
+
+  return;
+}        
 
   // 2) 무소유 땅: 돈 충분이면 pending / 부족이면 턴 넘김
   if (isProp && !owner) {
@@ -934,8 +977,10 @@ myPlayer = (p1 === clientId) ? 1 : (p2 === clientId) ? 2 : null;
         money2 = data.money2 ?? 200;
         owned = data.owned || {};
         buildings = data.buildings || {};
+        fund = data.fund ?? 0;
         applyOwnedColors();
         applyBuildingMarkers();
+        applyFundLabel();
 pending = data.pending || null;
 
         const sharedDice = data.dice ?? null;
