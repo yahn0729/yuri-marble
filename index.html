@@ -570,7 +570,7 @@ async function resolvePending(action){
     const p = data.pending || null;
     if (!p) return;
 
-if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fund") return;
+if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fund" && p.type !== "space") return;
     if (p.player !== myPlayer) return;
 
   if (p.type === "fund") {
@@ -611,6 +611,26 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
   tx.set(gameRef, {
     money1: m1,
     money2: m2,
+    pending: null,
+    turn: (myPlayer === 1 ? 2 : 1)
+  }, { merge: true });
+
+  return;
+}
+
+    if (p.type === "space") {
+  const sel = document.getElementById("spaceTarget");
+  const target = sel ? Number(sel.value) : 0;
+
+  let pos1 = data.position1 ?? 0;
+  let pos2 = data.position2 ?? 0;
+
+  if (myPlayer === 1) pos1 = target;
+  else pos2 = target;
+
+  tx.set(gameRef, {
+    position1: pos1,
+    position2: pos2,
     pending: null,
     turn: (myPlayer === 1 ? 2 : 1)
   }, { merge: true });
@@ -959,6 +979,27 @@ if (next === 4) {
   return;
 }
 
+   // 1.8) 우주여행(12번): 목적지 선택 pending
+if (next === 12) {
+  tx.set(gameRef, {
+    ...movePatch,
+    owned: ownedNow,
+    buildings: data.buildings || {},
+    fund: data.fund ?? 0,
+    money1: m1,
+    money2: m2,
+    dice,
+    pending: {
+      type: "space",
+      player: myPlayer,
+      from: 12
+    }
+    // ⚠️ turn은 여기서 넘기지 말기! (선택 후 resolvePending에서 넘김)
+  }, { merge: true });
+
+  return;
+}       
+
   // 2) 무소유 땅: 돈 충분이면 pending / 부족이면 턴 넘김
   if (isProp && !owner) {
     const price = t.price ?? 0;
@@ -1257,6 +1298,25 @@ if (!pendingKey) {
   document.getElementById("buyBtn").textContent = "확인";
 
   document.getElementById("modalBackdrop").style.display = "flex";
+
+   } else if (pending.type === "space" && myPlayer && pending.player === myPlayer) {
+  document.getElementById("modalTitle").textContent = "🚀 우주여행";
+  document.getElementById("modalDesc").innerHTML = `
+    원하는 칸으로 이동할 수 있어!<br/><br/>
+    <select id="spaceTarget" style="width:100%; padding:10px; border-radius:12px; font-weight:900;">
+      ${Array.from({length:16}, (_,i)=>`<option value="${i}">${i}번 칸</option>`).join("")}
+    </select>
+  `;
+
+  // ✅ 버튼은 "이동" 하나만
+  document.querySelector("#modal .actions").style.display = "flex";
+  document.getElementById("closeBtn").style.display = "none";
+  document.getElementById("passBtn").style.display = "none";
+  document.getElementById("buyBtn").style.display = "inline-block";
+  document.getElementById("buyBtn").textContent = "이동";
+
+  document.getElementById("modalBackdrop").style.display = "flex";
+
 
 } else if (pending.type === "rent") {
 
