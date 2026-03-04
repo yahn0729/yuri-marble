@@ -259,6 +259,25 @@
   15: { type:"prop",   name: "서울 🏙", price: 80, rent: 18 }
 };
 
+    const tileNames = [
+  "출발",
+  "스위스",
+  "황금열쇠",
+  "프랑스",
+  "무인도",
+  "일본",
+  "황금열쇠",
+  "미국",
+  "사회복지기금",
+  "독일",
+  "황금열쇠",
+  "태국",
+  "우주여행",
+  "영국",
+  "사회복지기금 납부",
+  "서"
+];
+
     const keyCards = [
   // 💰 money (6장)
   { id:"K01", text:"🎁 용돈 받기! +20 💰", kind:"money", amount:+20 },
@@ -1320,9 +1339,9 @@ if (!pendingKey) {
     // ✅ 선택하는 사람(도착한 사람): 드롭다운 + 이동 버튼
     document.getElementById("modalDesc").innerHTML = `
       원하는 칸으로 이동할 수 있어!<br/><br/>
-      <select id="spaceTarget" style="width:100%; padding:10px; border-radius:12px; font-weight:900;">
-        ${Array.from({length:16}, (_,i)=>`<option value="${i}">${i}번 칸</option>`).join("")}
-      </select>
+   <select id="spaceTarget">
+  ${tileNames.map((name,i)=>`<option value="${i}">${name}</option>`).join("")}
+</select>
     `;
 
     document.querySelector("#modal .actions").style.display = "flex";
