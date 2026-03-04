@@ -1299,21 +1299,36 @@ if (!pendingKey) {
 
   document.getElementById("modalBackdrop").style.display = "flex";
 
-   } else if (pending.type === "space" && myPlayer && pending.player === myPlayer) {
-  document.getElementById("modalTitle").textContent = "🚀 우주여행";
-  document.getElementById("modalDesc").innerHTML = `
-    원하는 칸으로 이동할 수 있어!<br/><br/>
-    <select id="spaceTarget" style="width:100%; padding:10px; border-radius:12px; font-weight:900;">
-      ${Array.from({length:16}, (_,i)=>`<option value="${i}">${i}번 칸</option>`).join("")}
-    </select>
-  `;
+   } else if (pending.type === "space") {
+  const chooser = pending.player;     
+  const isChooser = (myPlayer === chooser);
 
-  // ✅ 버튼은 "이동" 하나만
-  document.querySelector("#modal .actions").style.display = "flex";
-  document.getElementById("closeBtn").style.display = "none";
-  document.getElementById("passBtn").style.display = "none";
-  document.getElementById("buyBtn").style.display = "inline-block";
-  document.getElementById("buyBtn").textContent = "이동";
+  document.getElementById("modalTitle").textContent = "🚀 우주여행";
+
+  if (isChooser) {
+    // ✅ 선택하는 사람(도착한 사람): 드롭다운 + 이동 버튼
+    document.getElementById("modalDesc").innerHTML = `
+      원하는 칸으로 이동할 수 있어!<br/><br/>
+      <select id="spaceTarget" style="width:100%; padding:10px; border-radius:12px; font-weight:900;">
+        ${Array.from({length:16}, (_,i)=>`<option value="${i}">${i}번 칸</option>`).join("")}
+      </select>
+    `;
+
+    document.querySelector("#modal .actions").style.display = "flex";
+    document.getElementById("closeBtn").style.display = "none";
+    document.getElementById("passBtn").style.display = "none";
+    document.getElementById("buyBtn").style.display = "inline-block";
+    document.getElementById("buyBtn").textContent = "이동";
+  } else {
+    // ✅ 상대: 안내만 (버튼 없음)
+    document.getElementById("modalDesc").innerHTML =
+      `Player ${chooser}가 이동할 칸을 선택 중...<br/>잠시만 기다려줘 ⏳`;
+
+    document.querySelector("#modal .actions").style.display = "none";
+    document.getElementById("closeBtn").style.display = "none";
+    document.getElementById("passBtn").style.display = "none";
+    document.getElementById("buyBtn").style.display = "none";
+  }
 
   document.getElementById("modalBackdrop").style.display = "flex";
 
