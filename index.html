@@ -1268,21 +1268,32 @@ if (!pendingKey) {
 
   document.getElementById("modalBackdrop").style.display = "flex";
 
-   } else if (pending.type === "key" && myPlayer && pending.player === myPlayer) {
+  } else if (pending.type === "key") {
+  const chooser = pending.player;              // 황금열쇠 뽑은 사람
+  const isChooser = (myPlayer === chooser);
   const cardText = pending.card?.text ?? "황금열쇠!";
 
   document.getElementById("modalTitle").textContent = "황금열쇠 🔑";
-  document.getElementById("modalDesc").innerHTML = cardText;
+  document.getElementById("modalDesc").innerHTML = isChooser
+    ? cardText
+    : `Player ${chooser}의 황금열쇠!<br/><br/>${cardText}`;
 
-  // ✅ 확인 버튼 하나만
-  document.querySelector("#modal .actions").style.display = "flex";
-  document.getElementById("closeBtn").style.display = "none";
-  document.getElementById("passBtn").style.display = "none";
-  document.getElementById("buyBtn").style.display = "inline-block";
-  document.getElementById("buyBtn").textContent = "확인";
+  if (isChooser) {
+    // ✅ 뽑은 사람만 확인 버튼
+    document.querySelector("#modal .actions").style.display = "flex";
+    document.getElementById("closeBtn").style.display = "none";
+    document.getElementById("passBtn").style.display = "none";
+    document.getElementById("buyBtn").style.display = "inline-block";
+    document.getElementById("buyBtn").textContent = "확인";
+  } else {
+    // ✅ 상대는 버튼 숨김(강제로 기다리게)
+    document.querySelector("#modal .actions").style.display = "none";
+    document.getElementById("closeBtn").style.display = "none";
+    document.getElementById("passBtn").style.display = "none";
+    document.getElementById("buyBtn").style.display = "none";
+  }
 
   document.getElementById("modalBackdrop").style.display = "flex";
-
 } else if (pending.type === "fund" && myPlayer && pending.player === myPlayer) {
   const amt = pending.amount ?? 0;
 
