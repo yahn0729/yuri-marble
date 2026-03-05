@@ -614,13 +614,22 @@ function moveAndResolve(tx, data, myPlayer, fromPos, toPos, opts = {}) {
     else m2 += 20;
   }
 
-  // applyLanding이 position set + 도착칸 pending/턴 처리까지 함
-  applyLanding(tx, {
-    ...data,
-    money1: m1,
-    money2: m2
-  }, myPlayer, to, { pending: null });
-}  
+const dir = opts.dir || "forward";
+
+applyLanding(tx, {
+  ...data,
+  money1: m1,
+  money2: m2
+}, myPlayer, to, {
+  pending: null,
+  lastMove: {
+    player: myPlayer,
+    from,
+    to,
+    dir,
+    at: Date.now()
+  }
+});
 
 function applyLanding(tx, data, myPlayer, nextPos, extraPatch = {}) {
   const tilesLocal = tiles; // 가독성
@@ -882,8 +891,6 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
 
   if (p.type === "key") {
   const card = p.card || {};
-
-  // 내 현재 위치(from)
   const from = (myPlayer === 1) ? (data.position1 ?? 0) : (data.position2 ?? 0);
 
   // 1) 💰 돈 카드
@@ -1073,20 +1080,47 @@ if (p.type === "space") {
       // 이동 애니메이션
       let animating = false;
       const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-      async function animateMove(who, from, to){
-        if (animating) return;
-        animating = true;
-        let pos = from;
-        const steps = (to - from + 16) % 16;
+async function animateMove(who, from, to, dir = "forward"){
+  if (animating) return;
+  animating = true;
 
-        for (let i=0; i<steps; i++){
-          pos = (pos + 1) % 16;
-          if (who === 1) currentPos = pos; else currentPos2 = pos;
-          renderTokens(currentPos, currentPos2);
-          await sleep(180);
-        }
-        animating = false;
-      }
+  // 1) 텔레포트: 애니메이션 없이 바로 점프
+  if (dir === "teleport") {
+    if (who === 1) currentPos = to;
+    else currentPos2 = to;
+    renderTokens(currentPos, currentPos2);
+    animating = false;
+    return;
+  }
+
+  let pos = from;
+
+  // 2) steps 계산
+  // forward: (to - from) 만큼 앞으로
+  // backward: (from - to) 만큼 뒤로
+  const steps = (dir === "backward")
+    ? (from - to + 16) % 16
+    : (to - from + 16) % 16;
+
+  for (let i=0; i<steps; i++){
+    pos = (dir === "backward")
+      ? (pos - 1 + 16) % 16
+      : (pos + 1) % 16;
+
+    if (who === 1) currentPos = pos;
+    else currentPos2 = pos;
+
+    renderTokens(currentPos, currentPos2);
+    await sleep(180);
+  }
+
+  // 마지막 위치 보정
+  if (who === 1) currentPos = to;
+  else currentPos2 = to;
+
+  renderTokens(currentPos, currentPos2);
+  animating = false;
+}
 
 // position/turn/money/fund/jail 등 "없을 때만" 초기값 세팅 (새로고침 리셋 방지)
 await runTransaction(db, async (tx) => {
@@ -1542,14 +1576,26 @@ if (sharedDice != null) {
   document.getElementById("dice").textContent = sharedDice;
 }
 
-        const newP1 = data.position1 ?? 0;
-        const newP2 = data.position2 ?? 0;
+const newP1 = data.position1 ?? 0;
+const newP2 = data.position2 ?? 0;
 
-        if (newP1 !== currentPos) await animateMove(1, currentPos, newP1);
-        else currentPos = newP1;
+const lm = data.lastMove || null;
 
-        if (newP2 !== currentPos2) await animateMove(2, currentPos2, newP2);
-        else currentPos2 = newP2;
+const dir1 =
+  (lm && lm.player === 1 && lm.from === currentPos && lm.to === newP1)
+    ? (lm.dir || "forward")
+    : "forward";
+
+const dir2 =
+  (lm && lm.player === 2 && lm.from === currentPos2 && lm.to === newP2)
+    ? (lm.dir || "forward")
+    : "forward";
+
+if (newP1 !== currentPos) await animateMove(1, currentPos, newP1, dir1);
+else currentPos = newP1;
+
+if (newP2 !== currentPos2) await animateMove(2, currentPos2, newP2, dir2);
+else currentPos2 = newP2;
 
         renderTokens(currentPos, currentPos2);
 
