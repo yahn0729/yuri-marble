@@ -582,6 +582,39 @@ if (d.pending && (d.pending.type === "rent" || d.pending.type === "build")) {
 
 function mod16(n){ return (n % 16 + 16) % 16; }
 
+    /**
+ * 이동(from -> to) + 출발점 보너스(+20) 처리 + 도착칸 판정(applyLanding)까지 한번에
+ * - awardOnPassStart: 출발점을 "지나가면" +20 (ex: 12 -> 3)
+ * - awardOnLandStart: 출발(0)에 "도착하면" +20 (ex: 12 -> 0)
+ * 
+ */
+function moveAndResolve(tx, data, myPlayer, fromPos, toPos, opts = {}) {
+  const awardOnPassStart = (opts.awardOnPassStart !== false); // 기본 true
+  const awardOnLandStart = (opts.awardOnLandStart !== false); // 기본 true
+
+  let m1 = data.money1 ?? 200;
+  let m2 = data.money2 ?? 200;
+
+  const from = Number(fromPos ?? 0);
+  const to = mod16(Number(toPos ?? 0));
+
+  // "전진 이동" 기준으로 한 바퀴 넘어가면 출발점 통과로 간주
+  // (우주여행 룰을 'from에서 to로 앞으로 간다'로 정했기 때문에 안전하게 일관됨)
+  const passedStart = to < from;
+
+  if ((awardOnPassStart && passedStart) || (awardOnLandStart && to === 0)) {
+    if (myPlayer === 1) m1 += 20;
+    else m2 += 20;
+  }
+
+  // applyLanding이 position set + 도착칸 pending/턴 처리까지 함
+  applyLanding(tx, {
+    ...data,
+    money1: m1,
+    money2: m2
+  }, myPlayer, to, { pending: null });
+}  
+
 function applyLanding(tx, data, myPlayer, nextPos, extraPatch = {}) {
   const tilesLocal = tiles; // 가독성
   const t = tilesLocal[nextPos];
@@ -866,24 +899,13 @@ if (p.type === "space") {
   const sel = document.getElementById("spaceTarget");
   const target = sel ? Number(sel.value) : 0;
 
-  // ✅ 우주여행도 "출발점 통과(+20)" 룰 적용
-  // 기본: 우주여행은 p.from(보통 12)에서 target으로 "전진"한다고 가정
-  const from = Number(p.from ?? 12);
+  const from = Number(p.from ?? 12); // 우주여행은 12에서 출발했다고 pending에 들어있음
 
-  let m1 = data.money1 ?? 200;
-  let m2 = data.money2 ?? 200;
-
-  const passedStart = target < from;  // 12 -> 0~11 이면 출발점 통과로 간주
-  if (passedStart) {
-    if (myPlayer === 1) m1 += 20;
-    else m2 += 20;
-  }
-
-  applyLanding(tx, {
-    ...data,
-    money1: m1,
-    money2: m2
-  }, myPlayer, target, { pending: null });
+  // ✅ 여기서부터는 "이동 + 보너스 + 도착칸 판정"을 한 함수로 통일
+  moveAndResolve(tx, data, myPlayer, from, target, {
+    awardOnPassStart: true,   // 12 -> 0~11 : 출발점 지나면 +20
+    awardOnLandStart: true    // 출발(0) 도착도 +20 (원하면 false로 바꿀 수 있음)
+  });
 
   return;
 }
