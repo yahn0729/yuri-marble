@@ -1228,6 +1228,9 @@ await runTransaction(db, async (tx) => {
   const turn = data.turn ?? 1;
   if (turn !== myPlayer) return;
 
+    if (data.pending) return;
+  if (data.rolling) return;        
+
           const dice = Math.floor(Math.random() * 6) + 1;
 
   const ownedNow = data.owned || {};
@@ -1280,6 +1283,7 @@ if (next === 14) {
     money1: m1,
     money2: m2,
     fund: fundNow,
+      diceOwner: myPlayer,
     dice,
     pending: null,
     turn: (myPlayer === 1 ? 2 : 1)
@@ -1301,6 +1305,7 @@ if (next === 8) {
       money1: m1,
       money2: m2,
       fund: fundNow,
+        diceOwner: myPlayer,
       dice,
       pending: null,
       turn: (myPlayer === 1 ? 2 : 1)
@@ -1316,6 +1321,7 @@ if (next === 8) {
     money1: m1,
     money2: m2,
     fund: fundNow,
+      diceOwner: myPlayer,
     dice,
     pending: {
       type: "fund",
@@ -1340,6 +1346,7 @@ if (next === 4) {
     fund: data.fund ?? 0,
     money1: m1,
     money2: m2,
+    diceOwner: myPlayer,
     dice,
     pending: null,
     turn: (myPlayer === 1 ? 2 : 1)
@@ -1357,6 +1364,7 @@ if (next === 12) {
     fund: data.fund ?? 0,
     money1: m1,
     money2: m2,
+    diceOwner: myPlayer,
     dice,
     pending: {
       type: "space",
@@ -1380,6 +1388,7 @@ if (next === 12) {
         owned: ownedNow,
         money1: m1,
         money2: m2,
+        diceOwner: myPlayer,
           dice,
         pending: null,
         turn: (myPlayer === 1 ? 2 : 1)
@@ -1392,6 +1401,7 @@ if (next === 12) {
       owned: ownedNow,
       money1: m1,
       money2: m2,
+      diceOwner: myPlayer,
         dice,
       pending: {
         type: "buy",
@@ -1430,6 +1440,7 @@ const rent = hasBuilding ? baseRent * 3 : baseRent;
       owned: ownedNow,
       money1: m1,
       money2: m2,
+      diceOwner: myPlayer,
         dice,
       pending: null,
       gameOver: true,
@@ -1444,6 +1455,7 @@ const rent = hasBuilding ? baseRent * 3 : baseRent;
     owned: ownedNow,
     money1: m1,
     money2: m2,
+    diceOwner: myPlayer,
       dice,
    pending: { type:"rent", tile: next, player: myPlayer, owner, rent, hasBuilding },
     turn: (myPlayer === 1 ? 2 : 1)
@@ -1462,6 +1474,7 @@ if (t?.type === "key") {
     buildings: data.buildings || {},
     money1: m1,
     money2: m2,
+    diceOwner: myPlayer,
     dice,
     pending: {
       type: "key",
@@ -1494,6 +1507,7 @@ if (isProp && owner === myPlayer) {
         buildings: buildingsNow,
         money1: m1,
         money2: m2,
+        diceOwner: myPlayer,
         dice,
         pending: {
           type: "build",
@@ -1514,6 +1528,7 @@ if (isProp && owner === myPlayer) {
     money1: m1,
     money2: m2,
       dice,
+    diceOwner: myPlayer,
     pending: null,
     turn: (myPlayer === 1 ? 2 : 1)
   }, { merge: true });
@@ -1575,10 +1590,18 @@ myPlayer = (p1 === clientId) ? 1 : (p2 === clientId) ? 2 : null;
         applyJailBadge();
 pending = data.pending || null;
 
-        const sharedDice = data.dice ?? null;
+     const sharedDice = data.dice ?? null;
+const diceOwner = data.diceOwner ?? null;
+
 if (sharedDice != null) {
-  document.getElementById("diceResult").innerText = sharedDice;
-  document.getElementById("dice").textContent = sharedDice;
+  // ✅ 굴린 사람만 숫자 표시, 상대/관전은 🎲 또는 공백
+  if (myPlayer && diceOwner === myPlayer) {
+    document.getElementById("diceResult").innerText = sharedDice;
+    document.getElementById("dice").textContent = sharedDice;
+  } else {
+    document.getElementById("diceResult").innerText = "—";
+    document.getElementById("dice").textContent = "🎲";
+  }
 }
 
 const newP1 = data.position1 ?? 0;
@@ -1608,7 +1631,7 @@ else currentPos2 = newP2;
         latestTurn = turn;
 
         const btn = document.getElementById("rollBtn");
-btn.disabled = (!myPlayer || latestTurn !== myPlayer || animating || !!pending || !!data.gameOver);
+btn.disabled = (!myPlayer || latestTurn !== myPlayer || animating || !!pending || !!data.rolling || !!data.gameOver);
 
         document.getElementById("playerLabel").textContent =
           myPlayer
