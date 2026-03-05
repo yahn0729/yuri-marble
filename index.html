@@ -459,6 +459,7 @@ cell.innerHTML = `
       let money2 = 200;
       let lastPendingKey = null;
       let lastOwnedToastKey = null;
+      let lastDiceNonceRendered = -1;
       
 function showToast(msg){
   const el = document.getElementById("toast");
@@ -1284,6 +1285,7 @@ if (next === 14) {
     money2: m2,
     fund: fundNow,
       diceOwner: myPlayer,
+    diceNonce: (data.diceNonce ?? 0) + 1,
     dice,
     pending: null,
     turn: (myPlayer === 1 ? 2 : 1)
@@ -1306,6 +1308,7 @@ if (next === 8) {
       money2: m2,
       fund: fundNow,
         diceOwner: myPlayer,
+      diceNonce: (data.diceNonce ?? 0) + 1,
       dice,
       pending: null,
       turn: (myPlayer === 1 ? 2 : 1)
@@ -1322,6 +1325,7 @@ if (next === 8) {
     money2: m2,
     fund: fundNow,
       diceOwner: myPlayer,
+    diceNonce: (data.diceNonce ?? 0) + 1,
     dice,
     pending: {
       type: "fund",
@@ -1347,6 +1351,7 @@ if (next === 4) {
     money1: m1,
     money2: m2,
     diceOwner: myPlayer,
+    diceNonce: (data.diceNonce ?? 0) + 1,
     dice,
     pending: null,
     turn: (myPlayer === 1 ? 2 : 1)
@@ -1365,6 +1370,7 @@ if (next === 12) {
     money1: m1,
     money2: m2,
     diceOwner: myPlayer,
+    diceNonce: (data.diceNonce ?? 0) + 1,
     dice,
     pending: {
       type: "space",
@@ -1389,6 +1395,7 @@ if (next === 12) {
         money1: m1,
         money2: m2,
         diceOwner: myPlayer,
+        diceNonce: (data.diceNonce ?? 0) + 1,
           dice,
         pending: null,
         turn: (myPlayer === 1 ? 2 : 1)
@@ -1402,6 +1409,7 @@ if (next === 12) {
       money1: m1,
       money2: m2,
       diceOwner: myPlayer,
+      diceNonce: (data.diceNonce ?? 0) + 1,
         dice,
       pending: {
         type: "buy",
@@ -1441,6 +1449,7 @@ const rent = hasBuilding ? baseRent * 3 : baseRent;
       money1: m1,
       money2: m2,
       diceOwner: myPlayer,
+      diceNonce: (data.diceNonce ?? 0) + 1,
         dice,
       pending: null,
       gameOver: true,
@@ -1456,6 +1465,7 @@ const rent = hasBuilding ? baseRent * 3 : baseRent;
     money1: m1,
     money2: m2,
     diceOwner: myPlayer,
+    diceNonce: (data.diceNonce ?? 0) + 1,
       dice,
    pending: { type:"rent", tile: next, player: myPlayer, owner, rent, hasBuilding },
     turn: (myPlayer === 1 ? 2 : 1)
@@ -1475,6 +1485,7 @@ if (t?.type === "key") {
     money1: m1,
     money2: m2,
     diceOwner: myPlayer,
+    diceNonce: (data.diceNonce ?? 0) + 1,
     dice,
     pending: {
       type: "key",
@@ -1508,6 +1519,7 @@ if (isProp && owner === myPlayer) {
         money1: m1,
         money2: m2,
         diceOwner: myPlayer,
+        diceNonce: (data.diceNonce ?? 0) + 1,
         dice,
         pending: {
           type: "build",
@@ -1527,8 +1539,9 @@ if (isProp && owner === myPlayer) {
     owned: ownedNow,
     money1: m1,
     money2: m2,
-      dice,
     diceOwner: myPlayer,
+    diceNonce: (data.diceNonce ?? 0) + 1,
+          dice,
     pending: null,
     turn: (myPlayer === 1 ? 2 : 1)
   }, { merge: true });
@@ -1590,18 +1603,14 @@ myPlayer = (p1 === clientId) ? 1 : (p2 === clientId) ? 2 : null;
         applyJailBadge();
 pending = data.pending || null;
 
-     const sharedDice = data.dice ?? null;
-const diceOwner = data.diceOwner ?? null;
+const sharedDice = data.dice ?? null;
+const diceNonce = data.diceNonce ?? 0;
 
-if (sharedDice != null) {
-  // ✅ 굴린 사람만 숫자 표시, 상대/관전은 🎲 또는 공백
-  if (myPlayer && diceOwner === myPlayer) {
-    document.getElementById("diceResult").innerText = sharedDice;
-    document.getElementById("dice").textContent = sharedDice;
-  } else {
-    document.getElementById("diceResult").innerText = "—";
-    document.getElementById("dice").textContent = "🎲";
-  }
+if (sharedDice != null && diceNonce > lastDiceNonceRendered) {
+  lastDiceNonceRendered = diceNonce;
+
+  document.getElementById("diceResult").innerText = sharedDice;
+  document.getElementById("dice").textContent = sharedDice;
 }
 
 const newP1 = data.position1 ?? 0;
