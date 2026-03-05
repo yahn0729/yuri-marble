@@ -917,7 +917,7 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
     // gotoStart는 "통과" 개념 말고, 출발 도착 보너스만 주는 게 제일 안전
     moveAndResolve(tx, data, myPlayer, from, 0, {
       awardOnPassStart: false,
-      awardOnLandStart: true
+      awardOnLandStart: true,
       dir: "teleport"
     });
     return;
@@ -928,7 +928,7 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
     const to = Number(card.tile ?? 0);
     moveAndResolve(tx, data, myPlayer, from, to, {
       awardOnPassStart: false,
-      awardOnLandStart: (to === 0)  // 혹시라도 tile이 0이면 도착 보너스는 주기
+      awardOnLandStart: (to === 0),  // 혹시라도 tile이 0이면 도착 보너스는 주기
       dir: "teleport"
     });
     return;
@@ -941,7 +941,7 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
 
     moveAndResolve(tx, data, myPlayer, from, to, {
       awardOnPassStart: true,
-      awardOnLandStart: true
+      awardOnLandStart: true,
       dir: "teleport"
     });
     return;
@@ -954,7 +954,7 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
 
     moveAndResolve(tx, data, myPlayer, from, to, {
       awardOnPassStart: false,
-      awardOnLandStart: true   // 출발(0)에 정확히 도착하면 보너스는 주기
+      awardOnLandStart: true,   // 출발(0)에 정확히 도착하면 보너스는 주기
       dir: "teleport"
     });
     return;
