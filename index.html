@@ -579,7 +579,16 @@ window.passBuy = async function(){
 window.closeInfo = async function(){
   closeBuyModal();
 
-  window.sellLand = async function(tileNum){
+    await runTransaction(db, async (tx) => {
+    const snap = await tx.get(gameRef);
+    const d = snap.data() || {};
+if (d.pending && (d.pending.type === "rent" || d.pending.type === "build")) {
+  tx.set(gameRef, { pending: null }, { merge: true });
+}
+  });
+};
+
+window.sellLand = async function(tileNum){
   await resolvePending(`sellLand:${tileNum}`);
 };
 
@@ -593,15 +602,6 @@ window.payLiquidation = async function(){
 
 window.forfeitGame = async function(){
   await resolvePending("forfeit");
-};
-
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(gameRef);
-    const d = snap.data() || {};
-if (d.pending && (d.pending.type === "rent" || d.pending.type === "build")) {
-  tx.set(gameRef, { pending: null }, { merge: true });
-}
-  });
 };
 
 function mod16(n){ return (n % 16 + 16) % 16; }
