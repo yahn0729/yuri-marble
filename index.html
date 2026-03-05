@@ -880,21 +880,76 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
   return;
 }  
 
-    if (p.type === "key") {
+  if (p.type === "key") {
   const card = p.card || {};
-  let m1 = data.money1 ?? 200;
-  let m2 = data.money2 ?? 200;
 
-  const meIsP1 = (myPlayer === 1);
+  // 내 현재 위치(from)
+  const from = (myPlayer === 1) ? (data.position1 ?? 0) : (data.position2 ?? 0);
 
+  // 1) 💰 돈 카드
   if (card.kind === "money") {
-    if (meIsP1) m1 += (card.amount ?? 0);
+    let m1 = data.money1 ?? 200;
+    let m2 = data.money2 ?? 200;
+
+    if (myPlayer === 1) m1 += (card.amount ?? 0);
     else m2 += (card.amount ?? 0);
+
+    tx.set(gameRef, {
+      money1: m1,
+      money2: m2,
+      pending: null,
+      turn: (myPlayer === 1 ? 2 : 1)
+    }, { merge: true });
+
+    return;
   }
 
+  // 2) 🏁 출발로 이동 (+20)
+  if (card.kind === "gotoStart") {
+    // gotoStart는 "통과" 개념 말고, 출발 도착 보너스만 주는 게 제일 안전
+    moveAndResolve(tx, data, myPlayer, from, 0, {
+      awardOnPassStart: false,
+      awardOnLandStart: true
+    });
+    return;
+  }
+
+  // 3) 🚀 특정 칸으로 순간이동(goto) - 기본은 출발점 보너스 없음(순간이동이라)
+  if (card.kind === "goto") {
+    const to = Number(card.tile ?? 0);
+    moveAndResolve(tx, data, myPlayer, from, to, {
+      awardOnPassStart: false,
+      awardOnLandStart: (to === 0)  // 혹시라도 tile이 0이면 도착 보너스는 주기
+    });
+    return;
+  }
+
+  // 4) ➡️ 전진(forward) - 주사위처럼 출발점 통과/도착 보너스 적용
+  if (card.kind === "forward") {
+    const step = Number(card.step ?? 0);
+    const to = mod16(from + step);
+
+    moveAndResolve(tx, data, myPlayer, from, to, {
+      awardOnPassStart: true,
+      awardOnLandStart: true
+    });
+    return;
+  }
+
+  // 5) ⬅️ 후진(backward) - 뒤로 가는 건 출발점 "통과" 보너스는 주지 않음
+  if (card.kind === "backward") {
+    const step = Number(card.step ?? 0);
+    const to = mod16(from - step);
+
+    moveAndResolve(tx, data, myPlayer, from, to, {
+      awardOnPassStart: false,
+      awardOnLandStart: true   // 출발(0)에 정확히 도착하면 보너스는 주기
+    });
+    return;
+  }
+
+  // 혹시 모르는 카드: 그냥 종료 + 턴 넘김(안전장치)
   tx.set(gameRef, {
-    money1: m1,
-    money2: m2,
     pending: null,
     turn: (myPlayer === 1 ? 2 : 1)
   }, { merge: true });
