@@ -553,6 +553,13 @@ function openBuyModal(tileNum){
   document.getElementById("modalDesc").innerHTML =
     `가격: <b>${price}</b> 💰<br/>구매하시겠어요?`;
 
+  // ✅ (중요) 이전에 key/space/fund에서 숨겨둔 버튼 상태를 여기서 항상 초기화
+  document.querySelector("#modal .actions").style.display = "flex";
+  document.getElementById("closeBtn").style.display = "none";
+  document.getElementById("passBtn").style.display = "inline-block";
+  document.getElementById("buyBtn").style.display = "inline-block";
+  document.getElementById("buyBtn").textContent = "구매";
+
   document.getElementById("modalBackdrop").style.display = "flex";
 }
 
@@ -909,6 +916,9 @@ if (p.type === "space") {
 
   return;
 }
+
+      const tile = Number(p.tile);
+  const t = tiles[tile];
 
     const ownedNow = data.owned || {};
 
