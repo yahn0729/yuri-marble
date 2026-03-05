@@ -580,6 +580,231 @@ if (d.pending && (d.pending.type === "rent" || d.pending.type === "build")) {
   });
 };
 
+function mod16(n){ return (n % 16 + 16) % 16; }
+
+function applyLanding(tx, data, myPlayer, nextPos, extraPatch = {}) {
+  const tilesLocal = tiles; // 가독성
+  const t = tilesLocal[nextPos];
+  const ownedNow = data.owned || {};
+  const buildingsNow = data.buildings || {};
+
+  let m1 = data.money1 ?? 200;
+  let m2 = data.money2 ?? 200;
+  let fundNow = data.fund ?? 0;
+  let j1 = data.jail1 ?? 0;
+  let j2 = data.jail2 ?? 0;
+
+  const movePatch = (myPlayer === 1) ? { position1: nextPos } : { position2: nextPos };
+
+  // 14) 기금 납부
+  if (nextPos === 14) {
+    const fee = 10;
+    if (myPlayer === 1) m1 -= fee; else m2 -= fee;
+    fundNow += fee;
+    if (m1 < 0) m1 = 0;
+    if (m2 < 0) m2 = 0;
+
+    tx.set(gameRef, {
+      ...movePatch,
+      ...extraPatch,
+      money1: m1, money2: m2,
+      fund: fundNow,
+      owned: ownedNow,
+      buildings: buildingsNow,
+      pending: null,
+      turn: (myPlayer === 1 ? 2 : 1)
+    }, { merge: true });
+    return;
+  }
+
+  // 8) 기금 수령
+  if (nextPos === 8) {
+    if (fundNow <= 0) {
+      tx.set(gameRef, {
+        ...movePatch,
+        ...extraPatch,
+        money1: m1, money2: m2,
+        fund: fundNow,
+        owned: ownedNow,
+        buildings: buildingsNow,
+        pending: null,
+        turn: (myPlayer === 1 ? 2 : 1)
+      }, { merge: true });
+      return;
+    }
+
+    tx.set(gameRef, {
+      ...movePatch,
+      ...extraPatch,
+      money1: m1, money2: m2,
+      fund: fundNow,
+      owned: ownedNow,
+      buildings: buildingsNow,
+      pending: { type: "fund", player: myPlayer, amount: fundNow }
+      // turn 넘기지 않음 (확인 버튼에서 넘김)
+    }, { merge: true });
+    return;
+  }
+
+  // 4) 무인도
+  if (nextPos === 4) {
+    const patchJail = (myPlayer === 1) ? { jail1: 2 } : { jail2: 2 };
+    tx.set(gameRef, {
+      ...movePatch,
+      ...extraPatch,
+      ...patchJail,
+      money1: m1, money2: m2,
+      fund: fundNow,
+      owned: ownedNow,
+      buildings: buildingsNow,
+      pending: null,
+      turn: (myPlayer === 1 ? 2 : 1)
+    }, { merge: true });
+    return;
+  }
+
+  // 12) 우주여행
+  if (nextPos === 12) {
+    tx.set(gameRef, {
+      ...movePatch,
+      ...extraPatch,
+      money1: m1, money2: m2,
+      fund: fundNow,
+      owned: ownedNow,
+      buildings: buildingsNow,
+      pending: { type: "space", player: myPlayer, from: 12 }
+      // turn 넘기지 않음 (선택 후 resolvePending에서)
+    }, { merge: true });
+    return;
+  }
+
+  // 황금열쇠
+  if (t?.type === "key") {
+    const card = keyCards[Math.floor(Math.random() * keyCards.length)];
+    tx.set(gameRef, {
+      ...movePatch,
+      ...extraPatch,
+      money1: m1, money2: m2,
+      fund: fundNow,
+      owned: ownedNow,
+      buildings: buildingsNow,
+      pending: { type:"key", player: myPlayer, tile: nextPos, card }
+      // turn 넘기지 않음
+    }, { merge: true });
+    return;
+  }
+
+  // 땅(구매/통행료/건설)
+  const isProp = t?.type === "prop";
+  const owner = ownedNow[String(nextPos)] ?? null;
+
+  // 무소유: 구매 pending
+  if (isProp && !owner) {
+    const price = t.price ?? 0;
+    const myMoney = (myPlayer === 1) ? m1 : m2;
+
+    if (myMoney < price) {
+      tx.set(gameRef, {
+        ...movePatch,
+        ...extraPatch,
+        money1: m1, money2: m2,
+        fund: fundNow,
+        owned: ownedNow,
+        buildings: buildingsNow,
+        pending: null,
+        turn: (myPlayer === 1 ? 2 : 1)
+      }, { merge: true });
+      return;
+    }
+
+    tx.set(gameRef, {
+      ...movePatch,
+      ...extraPatch,
+      money1: m1, money2: m2,
+      fund: fundNow,
+      owned: ownedNow,
+      buildings: buildingsNow,
+      pending: { type:"buy", tile: nextPos, player: myPlayer, price }
+      // turn 넘기지 않음
+    }, { merge: true });
+    return;
+  }
+
+  // 상대 소유: 통행료 (+ rent pending은 모두에게 보여주는 용)
+  if (isProp && owner && owner !== myPlayer) {
+    const hasBuilding = !!buildingsNow[String(nextPos)];
+    const baseRent = t.rent ?? 0;
+    const rent = hasBuilding ? baseRent * 3 : baseRent;
+
+    if (myPlayer === 1) { m1 -= rent; m2 += rent; }
+    else { m2 -= rent; m1 += rent; }
+
+    const payerMoney = (myPlayer === 1) ? m1 : m2;
+    if (payerMoney <= 0) {
+      if (myPlayer === 1) m1 = 0; else m2 = 0;
+      tx.set(gameRef, {
+        ...movePatch,
+        ...extraPatch,
+        money1: m1, money2: m2,
+        fund: fundNow,
+        owned: ownedNow,
+        buildings: buildingsNow,
+        pending: null,
+        gameOver: true,
+        winner: owner
+      }, { merge: true });
+      return;
+    }
+
+    tx.set(gameRef, {
+      ...movePatch,
+      ...extraPatch,
+      money1: m1, money2: m2,
+      fund: fundNow,
+      owned: ownedNow,
+      buildings: buildingsNow,
+      pending: { type:"rent", tile: nextPos, player: myPlayer, owner, rent, hasBuilding },
+      turn: (myPlayer === 1 ? 2 : 1)
+    }, { merge: true });
+    return;
+  }
+
+  // 내 소유 + 건물 없음: 건설 pending
+  if (isProp && owner === myPlayer) {
+    const hasBuilding = !!buildingsNow[String(nextPos)];
+    if (!hasBuilding) {
+      const cost = Math.round((t.price ?? 0) / 2);
+      const myMoney = (myPlayer === 1) ? m1 : m2;
+
+      if (myMoney >= cost && cost > 0) {
+        tx.set(gameRef, {
+          ...movePatch,
+          ...extraPatch,
+          money1: m1, money2: m2,
+          fund: fundNow,
+          owned: ownedNow,
+          buildings: buildingsNow,
+          pending: { type:"build", tile: nextPos, player: myPlayer, cost }
+          // turn 넘기지 않음
+        }, { merge: true });
+        return;
+      }
+    }
+  }
+
+  // 그 외: 턴 넘김
+  tx.set(gameRef, {
+    ...movePatch,
+    ...extraPatch,
+    money1: m1, money2: m2,
+    fund: fundNow,
+    owned: ownedNow,
+    buildings: buildingsNow,
+    pending: null,
+    turn: (myPlayer === 1 ? 2 : 1)
+  }, { merge: true });
+}
+      
 async function resolvePending(action){
   if (!myPlayer) return;
 
@@ -637,32 +862,31 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
   return;
 }
 
-    if (p.type === "space") {
+if (p.type === "space") {
   const sel = document.getElementById("spaceTarget");
   const target = sel ? Number(sel.value) : 0;
 
-  let pos1 = data.position1 ?? 0;
-  let pos2 = data.position2 ?? 0;
+  // ✅ 우주여행도 "출발점 통과(+20)" 룰 적용
+  // 기본: 우주여행은 p.from(보통 12)에서 target으로 "전진"한다고 가정
+  const from = Number(p.from ?? 12);
 
-  if (myPlayer === 1) pos1 = target;
-  else pos2 = target;
+  let m1 = data.money1 ?? 200;
+  let m2 = data.money2 ?? 200;
 
-  tx.set(gameRef, {
-    position1: pos1,
-    position2: pos2,
-    pending: null,
-    turn: (myPlayer === 1 ? 2 : 1)
-  }, { merge: true });
+  const passedStart = target < from;  // 12 -> 0~11 이면 출발점 통과로 간주
+  if (passedStart) {
+    if (myPlayer === 1) m1 += 20;
+    else m2 += 20;
+  }
+
+  applyLanding(tx, {
+    ...data,
+    money1: m1,
+    money2: m2
+  }, myPlayer, target, { pending: null });
 
   return;
 }
-
-    const tile = p.tile;
-    const t = tiles[tile];
-    if (t?.type !== "prop") {
-      tx.set(gameRef, { pending: null }, { merge: true });
-      return;
-    }
 
     const ownedNow = data.owned || {};
 
