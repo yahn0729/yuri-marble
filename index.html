@@ -918,6 +918,7 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
     moveAndResolve(tx, data, myPlayer, from, 0, {
       awardOnPassStart: false,
       awardOnLandStart: true
+      dir: "teleport"
     });
     return;
   }
@@ -928,6 +929,7 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
     moveAndResolve(tx, data, myPlayer, from, to, {
       awardOnPassStart: false,
       awardOnLandStart: (to === 0)  // 혹시라도 tile이 0이면 도착 보너스는 주기
+      dir: "teleport"
     });
     return;
   }
@@ -940,6 +942,7 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
     moveAndResolve(tx, data, myPlayer, from, to, {
       awardOnPassStart: true,
       awardOnLandStart: true
+      dir: "teleport"
     });
     return;
   }
@@ -952,6 +955,7 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
     moveAndResolve(tx, data, myPlayer, from, to, {
       awardOnPassStart: false,
       awardOnLandStart: true   // 출발(0)에 정확히 도착하면 보너스는 주기
+      dir: "teleport"
     });
     return;
   }
