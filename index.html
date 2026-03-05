@@ -899,6 +899,7 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
     if (p.player !== myPlayer) return;
 
  if (p.type === "liquidate") {
+   if (p.player !== myPlayer) return;
   const need = Number(p.need ?? 0);
   const creditor = p.creditor ?? null;
   const tileNum = Number(p.tile ?? -1);
@@ -1933,6 +1934,26 @@ document.getElementById("buyBtn").style.display = "none";
 document.getElementById("modalBackdrop").style.display = "flex";
 
 } else if (pending.type === "liquidate") {
+
+   // ✅ 청산은 걸린 사람만 조작 가능
+if (pending.player !== myPlayer) {
+  document.getElementById("modalTitle").textContent = "상대가 자산 정리 중…";
+  document.getElementById("modalDesc").innerHTML = `상대가 통행료/벌칙을 내기 위해 자산을 판매하고 있어요.<br/>잠시만 기다려줘!`;
+
+  document.querySelector("#modal .actions").style.display = "flex";
+
+  const closeBtn = document.getElementById("closeBtn");
+  closeBtn.style.display = "inline-block";
+  closeBtn.textContent = "닫기";
+  closeBtn.onclick = () => closeBuyModal();
+
+  document.getElementById("passBtn").style.display = "none";
+  document.getElementById("buyBtn").style.display = "none";
+
+  document.getElementById("modalBackdrop").style.display = "flex";
+  return;
+}
+   
   const need = pending.need ?? 0;
   const myCash = (myPlayer === 1) ? money1 : money2;
   const lack = Math.max(0, need - myCash);
@@ -1952,8 +1973,8 @@ document.getElementById("modalBackdrop").style.display = "flex";
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin:8px 0; padding:8px 10px; background:#fafafa; border-radius:12px;">
         <div style="font-weight:900; font-size:13px;">${name}${hasB ? " 🏠" : ""}</div>
         <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
-          ${hasB ? `<button style="padding:8px 10px; border-radius:12px; border:none; font-weight:900; background:#ffe6f2;" onclick="sellBuilding(${n})">건물 팔기 +${bGain}</button>` : ""}
-          <button style="padding:8px 10px; border-radius:12px; border:none; font-weight:900; background:${hasB ? "#eee" : "#f2f2f2"};" ${hasB ? "disabled" : ""} onclick="sellLand(${n})">땅 팔기 +${landGain}</button>
+          ${hasB ? `<button style="padding:8px 10px; border-radius:12px; border:none; font-weight:900; background:#ffe6f2;" onclick="window.sellBuilding(${n})">건물 팔기 +${bGain}</button>` : ""}
+          <button style="padding:8px 10px; border-radius:12px; border:none; font-weight:900; background:${hasB ? "#eee" : "#f2f2f2"};" ${hasB ? "disabled" : ""} onclick="window.sellLand(${n})">땅 팔기 +${landGain}</button>
         </div>
       </div>
     `;
