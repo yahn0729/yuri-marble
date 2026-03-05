@@ -1927,7 +1927,7 @@ document.querySelector("#modal .actions").style.display = "flex";
 const closeBtn = document.getElementById("closeBtn");
 closeBtn.style.display = "inline-block";
 closeBtn.textContent = "닫기";
-closeBtn.onclick = () => closeBuyModal();
+closeBtn.onclick = () => window.closeInfo();
 
 document.getElementById("passBtn").style.display = "none";
 document.getElementById("buyBtn").style.display = "none";
