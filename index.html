@@ -588,6 +588,8 @@ if (d.pending && (d.pending.type === "rent" || d.pending.type === "build")) {
   });
 };
 
+ let liquidateSubmitting = false;
+      
 window.sellLand = async function(tileNum){
   if (liquidateSubmitting) return;
   liquidateSubmitting = true;
@@ -980,26 +982,35 @@ if (p.type === "liquidate") {
   }
 
   // 2) 건물 선택/해제
-  if (action.startsWith("toggleBuilding:")) {
-    const sellTile = Number(action.split(":")[1]);
-    if (!Number.isFinite(sellTile)) return;
-    if (ownedNow[String(sellTile)] !== myPlayer) return;
-    if (!buildingsNow[String(sellTile)]) return;
+ if (action.startsWith("toggleBuilding:")) {
+  const sellTile = Number(action.split(":")[1]);
+  if (!Number.isFinite(sellTile)) return;
+  if (ownedNow[String(sellTile)] !== myPlayer) return;
+  if (!buildingsNow[String(sellTile)]) return;
 
-    const key = `B:${sellTile}`;
-    const idx = selected.indexOf(key);
+  const key = `B:${sellTile}`;
+  const landKey = `L:${sellTile}`;
+  const idx = selected.indexOf(key);
 
-    if (idx >= 0) selected.splice(idx, 1);
-    else selected.push(key);
+  if (idx >= 0) {
+    // ✅ 건물 선택 해제하면 같은 칸의 땅 선택도 같이 해제
+    selected.splice(idx, 1);
 
-    tx.set(gameRef, {
-      pending: {
-        ...p,
-        selected
-      }
-    }, { merge: true });
-    return;
+    const landIdx = selected.indexOf(landKey);
+    if (landIdx >= 0) selected.splice(landIdx, 1);
+
+  } else {
+    selected.push(key);
   }
+
+  tx.set(gameRef, {
+    pending: {
+      ...p,
+      selected
+    }
+  }, { merge: true });
+  return;
+}
 
   // 3) 땅 선택/해제
   if (action.startsWith("toggleLand:")) {
@@ -1360,7 +1371,6 @@ if (p.type === "space") {
 }
       // 이동 애니메이션
       let animating = false;
-let liquidateSubmitting = false;
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 async function animateMove(who, from, to, dir = "forward"){
   if (animating) return;
