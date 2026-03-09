@@ -438,8 +438,8 @@ cell.innerHTML = `
     position1: 0,
     position2: 0,
     turn: 1,
-    money1: 200,
-    money2: 200,
+    money1: 20,
+    money2: 20,
     owned: {},
     buildings: {},
     fund: 0, 
@@ -672,25 +672,51 @@ function applyLanding(tx, data, myPlayer, nextPos, extraPatch = {}) {
   const movePatch = (myPlayer === 1) ? { position1: nextPos } : { position2: nextPos };
 
   // 14) 기금 납부
-  if (nextPos === 14) {
-    const fee = 10;
-    if (myPlayer === 1) m1 -= fee; else m2 -= fee;
-    fundNow += fee;
-    if (m1 < 0) m1 = 0;
-    if (m2 < 0) m2 = 0;
+ if (nextPos === 14) {
+  const fee = 10;
+  const myCash = (myPlayer === 1) ? m1 : m2;
 
+  // ✅ 돈 부족하면 바로 청산 모드
+  if (myCash < fee) {
     tx.set(gameRef, {
       ...movePatch,
       ...extraPatch,
-      money1: m1, money2: m2,
+      money1: m1,
+      money2: m2,
       fund: fundNow,
       owned: ownedNow,
       buildings: buildingsNow,
-      pending: null,
-      turn: (myPlayer === 1 ? 2 : 1)
+      pending: {
+        type: "liquidate",
+        player: myPlayer,
+        reason: "fund",
+        need: fee,
+        creditor: null,
+        tile: nextPos
+      }
     }, { merge: true });
     return;
   }
+
+  // ✅ 돈 충분하면 정상 납부
+  if (myPlayer === 1) m1 -= fee;
+  else m2 -= fee;
+
+  fundNow += fee;
+
+  tx.set(gameRef, {
+    ...movePatch,
+    ...extraPatch,
+    money1: m1,
+    money2: m2,
+    fund: fundNow,
+    owned: ownedNow,
+    buildings: buildingsNow,
+    pending: null,
+    turn: (myPlayer === 1 ? 2 : 1)
+  }, { merge: true });
+  return;
+}
 
   // 8) 기금 수령
   if (nextPos === 8) {
@@ -964,18 +990,19 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
 
   // 4) 납부
   if (action === "pay") {
-    const nowMoney = (myPlayer === 1) ? m1 : m2;
-    if (nowMoney < need) return; // 아직 부족하면 그냥 유지
+  const nowMoney = (myPlayer === 1) ? m1 : m2;
+  if (nowMoney < need) return;
 
-    if (myPlayer === 1) m1 -= need; else m2 -= need;
+  let fundNow = data.fund ?? 0;
 
-    // rent 납부면 상대에게 지급
-    if (p.reason === "rent" && (creditor === 1 || creditor === 2)) {
-      if (creditor === 1) m1 += need;
-      else m2 += need;
-    }
+  if (myPlayer === 1) m1 -= need;
+  else m2 -= need;
 
-    // 납부 완료 → rent 안내 pending 한 번 보여주고 턴 넘김
+  // ✅ rent면 상대에게 지급
+  if (p.reason === "rent" && (creditor === 1 || creditor === 2)) {
+    if (creditor === 1) m1 += need;
+    else m2 += need;
+
     tx.set(gameRef, {
       money1: m1,
       money2: m2,
@@ -991,6 +1018,30 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
     }, { merge: true });
     return;
   }
+
+  // ✅ fund면 기금에 적립
+  if (p.reason === "fund") {
+    fundNow += need;
+
+    tx.set(gameRef, {
+      money1: m1,
+      money2: m2,
+      fund: fundNow,
+      pending: null,
+      turn: (myPlayer === 1 ? 2 : 1)
+    }, { merge: true });
+    return;
+  }
+
+  // ✅ card 등 기타 벌금성 차감
+  tx.set(gameRef, {
+    money1: m1,
+    money2: m2,
+    pending: null,
+    turn: (myPlayer === 1 ? 2 : 1)
+  }, { merge: true });
+  return;
+}
 
   return;
 }   
@@ -1023,22 +1074,42 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
   const from = (myPlayer === 1) ? (data.position1 ?? 0) : (data.position2 ?? 0);
 
   // 1) 💰 돈 카드
-  if (card.kind === "money") {
-    let m1 = data.money1 ?? 200;
-    let m2 = data.money2 ?? 200;
+if (card.kind === "money") {
+  let m1 = data.money1 ?? 200;
+  let m2 = data.money2 ?? 200;
 
-    if (myPlayer === 1) m1 += (card.amount ?? 0);
-    else m2 += (card.amount ?? 0);
+  const amount = Number(card.amount ?? 0);
+  const myCash = (myPlayer === 1) ? m1 : m2;
 
+  // ✅ 음수 카드인데 돈이 부족하면 청산으로
+  if (amount < 0 && myCash < Math.abs(amount)) {
     tx.set(gameRef, {
-      money1: m1,
-      money2: m2,
-      pending: null,
-      turn: (myPlayer === 1 ? 2 : 1)
+      pending: {
+        type: "liquidate",
+        player: myPlayer,
+        reason: "card",
+        need: Math.abs(amount),
+        creditor: null,
+        tile: p.tile ?? null,
+        meta: { cardId: card.id ?? null }
+      }
     }, { merge: true });
-
     return;
   }
+
+  // ✅ 돈 충분하거나, 양수 카드면 그대로 반영
+  if (myPlayer === 1) m1 += amount;
+  else m2 += amount;
+
+  tx.set(gameRef, {
+    money1: m1,
+    money2: m2,
+    pending: null,
+    turn: (myPlayer === 1 ? 2 : 1)
+  }, { merge: true });
+
+  return;
+}
 
   // 2) 🏁 출발로 이동 (+20)
   if (card.kind === "gotoStart") {
@@ -1391,18 +1462,40 @@ await runTransaction(db, async (tx) => {
 
   // 1.5) 14번(기금 납부): 돈 내고 fund에 적립
 if (next === 14) {
-  const fee = 10; // 👈 납부 금액
-
+  const fee = 10;
   let fundNow = data.fund ?? 0;
+  const myCash = (myPlayer === 1) ? m1 : m2;
 
+  // ✅ 돈 부족하면 청산 UI로
+  if (myCash < fee) {
+    tx.set(gameRef, {
+      ...movePatch,
+      owned: ownedNow,
+      buildings: data.buildings || {},
+      money1: m1,
+      money2: m2,
+      fund: fundNow,
+      diceOwner: myPlayer,
+      diceNonce: (data.diceNonce ?? 0) + 1,
+      dice,
+      pending: {
+        type: "liquidate",
+        player: myPlayer,
+        reason: "fund",
+        need: fee,
+        creditor: null,
+        tile: next
+      }
+      // turn 넘기지 않음
+    }, { merge: true });
+    return;
+  }
+
+  // ✅ 돈 충분하면 기존처럼 납부
   if (myPlayer === 1) m1 -= fee;
   else m2 -= fee;
 
   fundNow += fee;
-
-  // (선택) 0 밑으로 내려가면 0으로만 보정
-  if (m1 < 0) m1 = 0;
-  if (m2 < 0) m2 = 0;
 
   tx.set(gameRef, {
     ...movePatch,
@@ -1411,7 +1504,7 @@ if (next === 14) {
     money1: m1,
     money2: m2,
     fund: fundNow,
-      diceOwner: myPlayer,
+    diceOwner: myPlayer,
     diceNonce: (data.diceNonce ?? 0) + 1,
     dice,
     pending: null,
@@ -1419,7 +1512,7 @@ if (next === 14) {
   }, { merge: true });
 
   return;
-}        
+}
 
   // 1.6) 8번(사회복지기금 수령): pending 띄우기
 if (next === 8) {
@@ -1958,60 +2051,52 @@ if (pending.player !== myPlayer) {
   const myCash = (myPlayer === 1) ? money1 : money2;
   const lack = Math.max(0, need - myCash);
 
-  const myTiles = Object.keys(owned || {})
-    .map(k => Number(k))
-    .filter(n => (owned[String(n)] === myPlayer) && tiles[n]?.type === "prop")
-    .sort((a,b)=>a-b);
+    const myTiles = Object.keys(owned || {})
+    .filter(k => owned[k] === myPlayer)
+    .map(Number);
 
-  const rows = myTiles.map(n => {
-    const name = tiles[n]?.name ?? n;
-    const hasB = !!buildings?.[String(n)];
-    const landGain = landSellPrice(n);
-    const bGain = buildingSellPrice(n);
+  const myBuildings = myTiles.filter(t => buildings?.[String(t)]);
 
-    return `
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin:8px 0; padding:8px 10px; background:#fafafa; border-radius:12px;">
-        <div style="font-weight:900; font-size:13px;">${name}${hasB ? " 🏠" : ""}</div>
-        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
-          ${hasB ? `<button style="padding:8px 10px; border-radius:12px; border:none; font-weight:900; background:#ffe6f2;" onclick="window.sellBuilding(${n})">건물 팔기 +${bGain}</button>` : ""}
-          <button style="padding:8px 10px; border-radius:12px; border:none; font-weight:900; background:${hasB ? "#eee" : "#f2f2f2"};" ${hasB ? "disabled" : ""} onclick="window.sellLand(${n})">땅 팔기 +${landGain}</button>
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  document.getElementById("modalTitle").textContent = "자산 판매(청산)";
-  document.getElementById("modalDesc").innerHTML = `
-    내야 할 금액: <b>${need}</b> 💰<br/>
-    현재 보유: <b>${myCash}</b> 💰<br/>
-    부족분: <b>${lack}</b> 💰<br/><br/>
-    <div style="font-size:12px; opacity:0.75; margin-bottom:8px;">
-      ※ 🏠가 있는 땅은 <b>건물 먼저</b> 팔아야 땅을 팔 수 있어
-    </div>
-    ${rows || `<div style="padding:10px; background:#fafafa; border-radius:12px; font-weight:800;">팔 수 있는 땅이 없어… 😭</div>`}
+  let html = `
+  필요 금액: <b>${need}</b> 💰<br/>
+  현재 보유: <b>${myCash}</b> 💰<br/>
+  부족 금액: <b>${lack}</b> 💰
+  <br/><br/>
   `;
 
-  document.querySelector("#modal .actions").style.display = "flex";
+  if (myBuildings.length > 0) {
+    html += `<b>🏠 건물 판매</b><br/>`;
+    myBuildings.forEach(t => {
+      html += `
+      <button onclick="sellBuilding(${t})">
+      ${tiles[t].name} 건물 판매 (+${buildingSellPrice(t)})
+      </button><br/>
+      `;
+    });
+  }
 
-  // 버튼: 포기 / 닫기 / 납부
-  const closeBtn = document.getElementById("closeBtn");
-  closeBtn.style.display = "inline-block";
-  closeBtn.textContent = "게임 포기";
-  closeBtn.onclick = () => forfeitGame();
+  if (myTiles.length > 0) {
+    html += `<br/><b>🌍 땅 판매</b><br/>`;
+    myTiles.forEach(t => {
+      if (!buildings?.[String(t)]) {
+        html += `
+        <button onclick="sellLand(${t})">
+        ${tiles[t].name} 판매 (+${landSellPrice(t)})
+        </button><br/>
+        `;
+      }
+    });
+  }
 
-  const passBtn = document.getElementById("passBtn");
-  passBtn.style.display = "inline-block";
-  passBtn.textContent = "닫기";
-  passBtn.onclick = () => closeBuyModal(); // pending 유지
+  html += `<br/><button onclick="payLiquidation()">납부</button>`;
+  html += `<br/><button onclick="forfeitGame()">게임 포기</button>`;
 
-  const buyBtn = document.getElementById("buyBtn");
-  buyBtn.style.display = "inline-block";
-  buyBtn.textContent = "납부";
-  buyBtn.onclick = () => payLiquidation();
-  buyBtn.disabled = (myCash < need);
+  document.getElementById("modalTitle").textContent = "자산 정리";
+  document.getElementById("modalDesc").innerHTML = html;
 
-  document.getElementById("modalBackdrop").style.display = "flex";   
-
+  document.querySelector("#modal .actions").style.display = "none";
+  document.getElementById("modalBackdrop").style.display = "flex";
+   
 } else {
   closeBuyModal();
 }
