@@ -993,12 +993,10 @@ if (p.type === "liquidate") {
   const idx = selected.indexOf(key);
 
   if (idx >= 0) {
-    // ✅ 건물 선택 해제하면 같은 칸의 땅 선택도 같이 해제
     selected.splice(idx, 1);
 
     const landIdx = selected.indexOf(landKey);
     if (landIdx >= 0) selected.splice(landIdx, 1);
-
   } else {
     selected.push(key);
   }
@@ -2156,7 +2154,7 @@ document.getElementById("modalBackdrop").style.display = "flex";
   const myTiles = Object.keys(owned || {})
     .map(k => Number(k))
     .filter(n => (owned[String(n)] === myPlayer) && tiles[n]?.type === "prop")
-    .sort((a, b) => a - b);
+    .sort((a,b)=>a-b);
 
   const rows = myTiles.map(n => {
     const name = tiles[n]?.name ?? n;
@@ -2179,26 +2177,26 @@ document.getElementById("modalBackdrop").style.display = "flex";
               ? `<button
                   style="padding:8px 10px; border-radius:12px; border:none; font-weight:900; background:${buildingSelected ? "#ffb3d9" : "#ffe6f2"};"
                   onclick="window.sellBuilding(${n})"
-                >${buildingSelected ? "건물 선택됨" : "건물 선택"} +${bGain}</button>`
+                >건물 ${buildingSelected ? "선택됨" : `+${bGain}`}</button>`
               : ""
           }
           <button
             style="padding:8px 10px; border-radius:12px; border:none; font-weight:900; background:${landDisabled ? "#eee" : landSelected ? "#d9ecff" : "#f2f2f2"};"
             ${landDisabled ? "disabled" : ""}
             onclick="window.sellLand(${n})"
-          >${landSelected ? "땅 선택됨" : "땅 선택"} +${landGain}</button>
+          >땅 ${landSelected ? "선택됨" : `+${landGain}`}</button>
         </div>
       </div>
     `;
   }).join("");
 
-  document.getElementById("modalTitle").textContent = "자산 판매(청산)";
+  document.getElementById("modalTitle").textContent = "청산";
   document.getElementById("modalDesc").innerHTML = `
     내야 할 금액: <b>${need}</b> 💰<br/>
     현재 보유: <b>${myCash}</b> 💰<br/>
-    선택 자산 예상금액: <b>${selectedGain}</b> 💰<br/>
-    납부 후 부족분: <b>${lack}</b> 💰<br/><br/>
-    <div style="font-size:12px; opacity:0.75; margin-bottom:8px;">
+    선택 자산 금액: <b>${selectedGain}</b> 💰<br/>
+    부족분: <b>${lack}</b> 💰<br/><br/>
+    <div style="font-size:12px; opacity:0.75; margin-bottom:8px; line-height:1.45;">
       ※ 건물이 있는 땅은 <b>건물을 먼저 선택</b>해야 땅을 선택할 수 있어<br/>
     </div>
     ${rows || `<div style="padding:10px; background:#fafafa; border-radius:12px; font-weight:800;">선택할 자산이 없어… 😭</div>`}
