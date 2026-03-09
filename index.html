@@ -593,7 +593,7 @@ window.sellLand = async function(tileNum){
   liquidateSubmitting = true;
 
   try {
-    await resolvePending(`sellLand:${tileNum}`);
+    await resolvePending(`toggleLand:${tileNum}`);
   } finally {
     setTimeout(() => { liquidateSubmitting = false; }, 150);
   }
@@ -604,7 +604,7 @@ window.sellBuilding = async function(tileNum){
   liquidateSubmitting = true;
 
   try {
-    await resolvePending(`sellBuilding:${tileNum}`);
+    await resolvePending(`toggleBuilding:${tileNum}`);
   } finally {
     setTimeout(() => { liquidateSubmitting = false; }, 150);
   }
@@ -720,7 +720,8 @@ function applyLanding(tx, data, myPlayer, nextPos, extraPatch = {}) {
         reason: "fund",
         need: fee,
         creditor: null,
-        tile: nextPos
+        tile: nextPos,
+        selected: [],
       }
     }, { merge: true });
     return;
@@ -882,7 +883,8 @@ if (isProp && owner && owner !== myPlayer) {
         need: rent,
         tile: nextPos,
         creditor: owner,
-        meta: { hasBuilding }
+        meta: { hasBuilding },
+        selected: [],
       }
     }, { merge: true });
     return;
@@ -952,19 +954,20 @@ async function resolvePending(action){
 if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fund" && p.type !== "space" && p.type !== "liquidate") return;
     if (p.player !== myPlayer) return;
 
- if (p.type === "liquidate") {
-   if (p.player !== myPlayer) return;
+if (p.type === "liquidate") {
+  if (p.player !== myPlayer) return;
+
   const need = Number(p.need ?? 0);
   const creditor = p.creditor ?? null;
   const tileNum = Number(p.tile ?? -1);
 
   let m1 = data.money1 ?? 200;
   let m2 = data.money2 ?? 200;
+  let fundNow = data.fund ?? 0;
 
-  const ownedNow = data.owned || {};
-  const buildingsNow = data.buildings || {};
-
-  const myMoney = (myPlayer === 1) ? m1 : m2;
+  const ownedNow = { ...(data.owned || {}) };
+  const buildingsNow = { ...(data.buildings || {}) };
+  const selected = Array.isArray(p.selected) ? [...p.selected] : [];
 
   // 1) 게임 포기
   if (action === "forfeit") {
@@ -976,105 +979,148 @@ if (p.type !== "buy" && p.type !== "build" && p.type !== "key" && p.type !== "fu
     return;
   }
 
-  // 2) 건물 팔기
-if (action.startsWith("sellBuilding:")) {
-  const sellTile = Number(action.split(":")[1]);
-  if (!Number.isFinite(sellTile)) return;
-  if (ownedNow[String(sellTile)] !== myPlayer) return;
-  if (!buildingsNow[String(sellTile)]) return;
+  // 2) 건물 선택/해제
+  if (action.startsWith("toggleBuilding:")) {
+    const sellTile = Number(action.split(":")[1]);
+    if (!Number.isFinite(sellTile)) return;
+    if (ownedNow[String(sellTile)] !== myPlayer) return;
+    if (!buildingsNow[String(sellTile)]) return;
 
-    delete buildingsNow[String(sellTile)];
+    const key = `B:${sellTile}`;
+    const idx = selected.indexOf(key);
 
-    const gain = buildingSellPrice(sellTile);
-    if (myPlayer === 1) m1 += gain; else m2 += gain;
-
-    tx.set(gameRef, {
-      buildings: buildingsNow,
-      money1: m1,
-      money2: m2,
-      pending: p // pending 유지
-    }, { merge: true });
-    return;
-  }
-
-  // 3) 땅 팔기 (건물 있으면 먼저 팔게 막기)
-if (action.startsWith("sellLand:")) {
-  const sellTile = Number(action.split(":")[1]);
-  if (!Number.isFinite(sellTile)) return;
-  if (ownedNow[String(sellTile)] !== myPlayer) return;
-  if (buildingsNow[String(sellTile)]) return;
-
-    delete ownedNow[String(sellTile)];
-
-    const gain = landSellPrice(sellTile);
-    if (myPlayer === 1) m1 += gain; else m2 += gain;
+    if (idx >= 0) selected.splice(idx, 1);
+    else selected.push(key);
 
     tx.set(gameRef, {
-      owned: ownedNow,
-      money1: m1,
-      money2: m2,
-      pending: p
-    }, { merge: true });
-    return;
-  }
-
-  // 4) 납부
-  if (action === "pay") {
-  const nowMoney = (myPlayer === 1) ? m1 : m2;
-  if (nowMoney < need) return;
-
-  let fundNow = data.fund ?? 0;
-
-  if (myPlayer === 1) m1 -= need;
-  else m2 -= need;
-
-  // ✅ rent면 상대에게 지급
-  if (p.reason === "rent" && (creditor === 1 || creditor === 2)) {
-    if (creditor === 1) m1 += need;
-    else m2 += need;
-
-    tx.set(gameRef, {
-      money1: m1,
-      money2: m2,
       pending: {
-        type: "rent",
-        tile: tileNum,
-        player: myPlayer,
-        owner: creditor,
-        rent: need,
-        hasBuilding: !!(p.meta?.hasBuilding)
-      },
-      turn: (myPlayer === 1 ? 2 : 1)
+        ...p,
+        selected
+      }
     }, { merge: true });
     return;
   }
 
-  // ✅ fund면 기금에 적립
-  if (p.reason === "fund") {
-    fundNow += need;
+  // 3) 땅 선택/해제
+  if (action.startsWith("toggleLand:")) {
+    const sellTile = Number(action.split(":")[1]);
+    if (!Number.isFinite(sellTile)) return;
+    if (ownedNow[String(sellTile)] !== myPlayer) return;
+
+    // 건물이 아직 남아 있으면 땅 선택 불가
+    const buildingStillExists =
+      !!buildingsNow[String(sellTile)] &&
+      !selected.includes(`B:${sellTile}`);
+
+    if (buildingStillExists) return;
+
+    const key = `L:${sellTile}`;
+    const idx = selected.indexOf(key);
+
+    if (idx >= 0) selected.splice(idx, 1);
+    else selected.push(key);
 
     tx.set(gameRef, {
+      pending: {
+        ...p,
+        selected
+      }
+    }, { merge: true });
+    return;
+  }
+
+  // 4) 납부 버튼 눌렀을 때만 실제 매각 + 정산
+  if (action === "pay") {
+    const nextOwned = { ...ownedNow };
+    const nextBuildings = { ...buildingsNow };
+
+    let gain = 0;
+
+    // 건물 먼저 실제 매각
+    selected
+      .filter(x => x.startsWith("B:"))
+      .forEach(x => {
+        const n = Number(x.split(":")[1]);
+        if (nextOwned[String(n)] === myPlayer && nextBuildings[String(n)]) {
+          delete nextBuildings[String(n)];
+          gain += buildingSellPrice(n);
+        }
+      });
+
+    // 땅 실제 매각
+    selected
+      .filter(x => x.startsWith("L:"))
+      .forEach(x => {
+        const n = Number(x.split(":")[1]);
+        if (nextOwned[String(n)] === myPlayer && !nextBuildings[String(n)]) {
+          delete nextOwned[String(n)];
+          gain += landSellPrice(n);
+        }
+      });
+
+    const currentCash = (myPlayer === 1) ? m1 : m2;
+    const totalCash = currentCash + gain;
+
+    // 아직 부족하면 납부 불가
+    if (totalCash < need) return;
+
+    // 먼저 내 현금 = 선택매각 반영 후 need 차감
+    if (myPlayer === 1) m1 = totalCash - need;
+    else m2 = totalCash - need;
+
+    // rent면 상대에게 지급
+    if (p.reason === "rent" && (creditor === 1 || creditor === 2)) {
+      if (creditor === 1) m1 += need;
+      else m2 += need;
+
+      tx.set(gameRef, {
+        owned: nextOwned,
+        buildings: nextBuildings,
+        money1: m1,
+        money2: m2,
+        pending: {
+          type: "rent",
+          tile: tileNum,
+          player: myPlayer,
+          owner: creditor,
+          rent: need,
+          hasBuilding: !!(p.meta?.hasBuilding)
+        },
+        turn: (myPlayer === 1 ? 2 : 1)
+      }, { merge: true });
+      return;
+    }
+
+    // fund면 기금 적립
+    if (p.reason === "fund") {
+      fundNow += need;
+
+      tx.set(gameRef, {
+        owned: nextOwned,
+        buildings: nextBuildings,
+        money1: m1,
+        money2: m2,
+        fund: fundNow,
+        pending: null,
+        turn: (myPlayer === 1 ? 2 : 1)
+      }, { merge: true });
+      return;
+    }
+
+    // card 등 기타 벌금
+    tx.set(gameRef, {
+      owned: nextOwned,
+      buildings: nextBuildings,
       money1: m1,
       money2: m2,
-      fund: fundNow,
       pending: null,
       turn: (myPlayer === 1 ? 2 : 1)
     }, { merge: true });
     return;
   }
 
-  // ✅ card 등 기타 벌금성 차감
-  tx.set(gameRef, {
-    money1: m1,
-    money2: m2,
-    pending: null,
-    turn: (myPlayer === 1 ? 2 : 1)
-  }, { merge: true });
   return;
 }
-
-  return;
-}   
 
   if (p.type === "fund") {
   let m1 = data.money1 ?? 200;
@@ -1121,7 +1167,8 @@ if (card.kind === "money") {
         need: Math.abs(amount),
         creditor: null,
         tile: p.tile ?? null,
-        meta: { cardId: card.id ?? null }
+        meta: { cardId: card.id ?? null },
+        selected: [],
       }
     }, { merge: true });
     return;
@@ -1515,7 +1562,8 @@ if (next === 14) {
         reason: "fund",
         need: fee,
         creditor: null,
-        tile: next
+        tile: next,
+        selected: [],
       }
       // turn 넘기지 않음
     }, { merge: true });
@@ -1699,7 +1747,8 @@ if (isProp && owner && owner !== myPlayer) {
         need: rent,
         tile: next,
         creditor: owner,
-        meta: { hasBuilding }
+        meta: { hasBuilding },
+        selected: [],
       }
       // ⚠️ turn 넘기지 않음 (청산 후 처리)
     }, { merge: true });
@@ -1910,7 +1959,7 @@ document.getElementById("moneyDisplay").innerHTML =
 
         // ✅ pending 모달: 같은 pending은 한 번만 처리
 const pendingKey = pending
-  ? `${pending.type}:${pending.tile}:${pending.player}:${pending.owner ?? ""}:${pending.rent ?? ""}:${money1}:${money2}:${JSON.stringify(owned)}:${JSON.stringify(buildings)}`
+  ? `${pending.type}:${pending.tile}:${pending.player}:${pending.owner ?? ""}:${pending.rent ?? ""}:${money1}:${money2}:${JSON.stringify(owned)}:${JSON.stringify(buildings)}:${JSON.stringify(pending.selected || [])}`
   : null;
 
 if (!pendingKey) {
@@ -2062,7 +2111,7 @@ document.getElementById("modalBackdrop").style.display = "flex";
   if (pending.player !== myPlayer) {
     document.getElementById("modalTitle").textContent = "상대가 자산 정리 중…";
     document.getElementById("modalDesc").innerHTML =
-      `상대가 통행료/벌칙을 내기 위해 자산을 판매하고 있어요.<br/>잠시만 기다려줘!`;
+      `상대가 통행료/벌칙을 내기 위해 자산을 선택 중이에요.<br/>잠시만 기다려줘!`;
 
     document.querySelector("#modal .actions").style.display = "flex";
 
@@ -2080,7 +2129,19 @@ document.getElementById("modalBackdrop").style.display = "flex";
 
   const need = pending.need ?? 0;
   const myCash = (myPlayer === 1) ? money1 : money2;
-  const lack = Math.max(0, need - myCash);
+  const selected = Array.isArray(pending.selected) ? pending.selected : [];
+
+  const selectedGain = selected.reduce((sum, item) => {
+    const [kind, raw] = item.split(":");
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return sum;
+    if (kind === "B") return sum + buildingSellPrice(n);
+    if (kind === "L") return sum + landSellPrice(n);
+    return sum;
+  }, 0);
+
+  const payableCash = myCash + selectedGain;
+  const lack = Math.max(0, need - payableCash);
 
   const myTiles = Object.keys(owned || {})
     .map(k => Number(k))
@@ -2093,12 +2154,29 @@ document.getElementById("modalBackdrop").style.display = "flex";
     const landGain = landSellPrice(n);
     const bGain = buildingSellPrice(n);
 
+    const buildingSelected = selected.includes(`B:${n}`);
+    const landSelected = selected.includes(`L:${n}`);
+
+    const buildingWillRemain = hasB && !buildingSelected;
+    const landDisabled = buildingWillRemain;
+
     return `
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin:8px 0; padding:8px 10px; background:#fafafa; border-radius:12px;">
         <div style="font-weight:900; font-size:13px;">${name}${hasB ? " 🏠" : ""}</div>
         <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
-          ${hasB ? `<button style="padding:8px 10px; border-radius:12px; border:none; font-weight:900; background:#ffe6f2;" onclick="window.sellBuilding(${n})">건물 팔기 +${bGain}</button>` : ""}
-          <button style="padding:8px 10px; border-radius:12px; border:none; font-weight:900; background:${hasB ? "#eee" : "#f2f2f2"};" ${hasB ? "disabled" : ""} onclick="window.sellLand(${n})">땅 팔기 +${landGain}</button>
+          ${
+            hasB
+              ? `<button
+                  style="padding:8px 10px; border-radius:12px; border:none; font-weight:900; background:${buildingSelected ? "#ffb3d9" : "#ffe6f2"};"
+                  onclick="window.sellBuilding(${n})"
+                >${buildingSelected ? "건물 선택됨" : "건물 선택"} +${bGain}</button>`
+              : ""
+          }
+          <button
+            style="padding:8px 10px; border-radius:12px; border:none; font-weight:900; background:${landDisabled ? "#eee" : landSelected ? "#d9ecff" : "#f2f2f2"};"
+            ${landDisabled ? "disabled" : ""}
+            onclick="window.sellLand(${n})"
+          >${landSelected ? "땅 선택됨" : "땅 선택"} +${landGain}</button>
         </div>
       </div>
     `;
@@ -2108,11 +2186,12 @@ document.getElementById("modalBackdrop").style.display = "flex";
   document.getElementById("modalDesc").innerHTML = `
     내야 할 금액: <b>${need}</b> 💰<br/>
     현재 보유: <b>${myCash}</b> 💰<br/>
-    부족분: <b>${lack}</b> 💰<br/><br/>
+    선택 자산 예상금액: <b>${selectedGain}</b> 💰<br/>
+    납부 후 부족분: <b>${lack}</b> 💰<br/><br/>
     <div style="font-size:12px; opacity:0.75; margin-bottom:8px;">
-      ※ 🏠가 있는 땅은 <b>건물 먼저</b> 팔아야 땅을 팔 수 있어
+      ※ 자산은 지금 바로 팔리는 게 아니라, <b>납부 버튼을 눌렀을 때만</b> 실제로 팔려
     </div>
-    ${rows || `<div style="padding:10px; background:#fafafa; border-radius:12px; font-weight:800;">팔 수 있는 땅이 없어… 😭</div>`}
+    ${rows || `<div style="padding:10px; background:#fafafa; border-radius:12px; font-weight:800;">선택할 자산이 없어… 😭</div>`}
   `;
 
   document.querySelector("#modal .actions").style.display = "flex";
@@ -2131,7 +2210,7 @@ document.getElementById("modalBackdrop").style.display = "flex";
   buyBtn.style.display = "inline-block";
   buyBtn.textContent = "납부";
   buyBtn.onclick = () => window.payLiquidation();
-  buyBtn.disabled = (myCash < need);
+  buyBtn.disabled = (payableCash < need);
 
   document.getElementById("modalBackdrop").style.display = "flex";
 
